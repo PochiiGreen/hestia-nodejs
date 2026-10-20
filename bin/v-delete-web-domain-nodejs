@@ -1,0 +1,50 @@
+#!/bin/bash
+# info: delete nodejs pm2 app and restore web domain in hestiacp
+# options: USER DOMAIN [APP_NAME]
+#
+# author: pochii-dev (https://github.com/pochii-dev)
+# example: v-delete-web-domain-nodejs admin example.com
+
+user="$1"
+domain="$2"
+app_name="$3"
+
+if [ -z "$user" ] || [ -z "$domain" ]; then
+    echo "Error: USER and DOMAIN are required."
+    echo "Usage: v-delete-web-domain-nodejs USER DOMAIN [APP_NAME]"
+    exit 1
+fi
+
+doc_root="/home/$user/web/$domain/public_html"
+conf_dir="/home/$user/conf/web/$domain"
+
+if [ -z "$app_name" ]; then
+    if [ -f "$doc_root/ecosystem.config.js" ]; then
+        su - "$user" -s /bin/bash -c "cd '$doc_root' && pm2 delete ecosystem.config.js 2>/dev/null || true; pm2 save"
+    else
+        app_name="node-$domain"
+        su - "$user" -s /bin/bash -c "pm2 delete '$app_name' 2>/dev/null || true; pm2 save"
+    fi
+else
+    su - "$user" -s /bin/bash -c "pm2 delete '$app_name' 2>/dev/null || true; pm2 save"
+fi
+
+# Remove port file
+rm -f "$conf_dir/nodeport.conf"
+
+# Restore default template
+if [ -x "/usr/local/hestia/bin/v-change-web-domain-tpl" ]; then
+    /usr/local/hestia/bin/v-change-web-domain-tpl "$user" "$domain" "default" "no" >/dev/null 2>&1 || true
+fi
+
+# Rebuild domain
+if [ -x "/usr/local/hestia/bin/v-rebuild-web-domain" ]; then
+    /usr/local/hestia/bin/v-rebuild-web-domain "$user" "$domain" "no" >/dev/null 2>&1 || true
+fi
+
+if systemctl is-active --quiet nginx; then
+    nginx -t >/dev/null 2>&1 && systemctl reload nginx
+fi
+
+echo "Success: Removed Node.js configuration for $domain and restored default template."
+exit 0

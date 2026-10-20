@@ -1,0 +1,52 @@
+# Node.js Port 3000 HTTPS Template
+server {
+    listen      %ip%:%web_ssl_port% ssl;
+    server_name %domain_idn% %alias_idn%;
+    root        %sdocroot%;
+    index       index.html index.htm;
+    access_log  /var/log/%web_system%/domains/%domain%.log combined;
+    access_log  /var/log/%web_system%/domains/%domain%.bytes bytes;
+    error_log   /var/log/%web_system%/domains/%domain%.error.log error;
+
+    ssl_certificate     %ssl_pem%;
+    ssl_certificate_key %ssl_key%;
+    ssl_stapling        on;
+    ssl_stapling_verify on;
+
+    include %home%/%user%/conf/web/%domain%/nginx.hsts.conf*;
+
+    location ~ /\.(?!well-known\/|file) {
+        deny all;
+        return 404;
+    }
+
+    location ~* ^.+\.(jpg|jpeg|gif|png|ico|svg|css|zip|tgz|gz|rar|bz2|doc|xls|exe|pdf|ppt|txt|tar|mid|midi|wav|bmp|rtf|js|flv|swf|woff|woff2|ttf|eot)$ {
+        root %sdocroot%;
+        access_log off;
+        expires 30d;
+        try_files $uri @nodejs;
+    }
+
+    location / {
+        try_files $uri @nodejs;
+    }
+
+    location @nodejs {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_buffering off;
+    }
+
+    location /error/ {
+        alias %home%/%user%/web/%domain%/document_errors/;
+    }
+
+    include %home%/%user%/conf/web/%domain%/nginx.ssl.conf_*;
+}

@@ -1,0 +1,31 @@
+#!/bin/bash
+# info: restart nodejs pm2 app for a web domain
+# options: USER DOMAIN [APP_NAME]
+#
+# author: pochii-dev (https://github.com/pochii-dev)
+# example: v-restart-web-domain-nodejs admin example.com
+
+user="$1"
+domain="$2"
+app_name="$3"
+
+if [ -z "$user" ] || [ -z "$domain" ]; then
+    echo "Error: USER and DOMAIN are required."
+    echo "Usage: v-restart-web-domain-nodejs USER DOMAIN [APP_NAME]"
+    exit 1
+fi
+
+doc_root="/home/$user/web/$domain/public_html"
+
+if [ -z "$app_name" ]; then
+    if [ -f "$doc_root/ecosystem.config.js" ]; then
+        su - "$user" -s /bin/bash -c "cd '$doc_root' && pm2 restart ecosystem.config.js"
+    else
+        app_name="node-$domain"
+        su - "$user" -s /bin/bash -c "pm2 restart '$app_name'"
+    fi
+else
+    su - "$user" -s /bin/bash -c "pm2 restart '$app_name'"
+fi
+
+exit $?

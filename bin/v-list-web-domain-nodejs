@@ -1,0 +1,49 @@
+#!/bin/bash
+# info: list nodejs pm2 applications across hestiacp users
+# options: [USER]
+#
+# author: pochii-dev (https://github.com/pochii-dev)
+# example: v-list-web-domain-nodejs [admin]
+
+target_user="$1"
+
+if [ -n "$target_user" ]; then
+    if ! id "$target_user" >/dev/null 2>&1; then
+        echo "Error: User '$target_user' does not exist."
+        exit 1
+    fi
+    echo "=== PM2 Applications for user: $target_user ==="
+    su - "$target_user" -s /bin/bash -c "pm2 list"
+    exit 0
+fi
+
+echo "====================================================================="
+echo "        HestiaCP Node.js & PM2 Applications (by pochii-dev)          "
+echo "====================================================================="
+
+found=0
+for conf in /home/*/conf/web/*/nodeport.conf; do
+    if [ -f "$conf" ]; then
+        found=1
+        u=$(echo "$conf" | cut -d'/' -f3)
+        d=$(echo "$conf" | cut -d'/' -f6)
+        p=$(grep -oE '[0-9]+' "$conf" | head -n 1)
+        printf "%-15s %-30s Port: %-6s\n" "User: $u" "Domain: $d" "$p"
+    fi
+done
+
+if [ "$found" -eq 0 ]; then
+    echo "No domains currently configured with Node.js port mapping."
+fi
+
+echo ""
+echo "=== PM2 Process Status per User ==="
+for u_home in /home/*; do
+    u=$(basename "$u_home")
+    if [ -d "$u_home/.pm2" ] && id "$u" >/dev/null 2>&1; then
+        echo "---------------------------------------------------------------------"
+        echo "User: $u"
+        su - "$u" -s /bin/bash -c "pm2 list" 2>/dev/null || true
+    fi
+done
+exit 0
