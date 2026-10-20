@@ -66,20 +66,20 @@ Módulo de integración nativa de **Node.js** y **PM2** para **Hestia Control Pa
 Ejecuta el siguiente comando en tu servidor HestiaCP como usuario `root`:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pochii-dev/hestia-nodejs/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/PochiiGreen/hestia-nodejs/main/install.sh | sudo bash
 ```
 
 ### Instalar una versión específica de Node.js
 Si requieres Node.js 22.x o 18.x en vez del 20.x LTS predeterminado:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pochii-dev/hestia-nodejs/main/install.sh | sudo NODE_VERSION=22 bash
+curl -fsSL https://raw.githubusercontent.com/PochiiGreen/hestia-nodejs/main/install.sh | sudo NODE_VERSION=22 bash
 ```
 
 ### Instalación Manual (Clonando)
 
 ```bash
-git clone https://github.com/pochii-dev/hestia-nodejs.git /root/hestia-nodejs
+git clone https://github.com/PochiiGreen/hestia-nodejs.git /root/hestia-nodejs
 cd /root/hestia-nodejs
 chmod +x install.sh
 sudo ./install.sh

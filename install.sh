@@ -8,7 +8,7 @@ set -e
 
 # Default Configurations
 NODE_VERSION="${NODE_VERSION:-20}"
-REPO_URL="${REPO_URL:-https://github.com/pochii-dev/hestia-nodejs.git}"
+REPO_URL="${REPO_URL:-https://github.com/PochiiGreen/hestia-nodejs.git}"
 BRANCH="${BRANCH:-main}"
 AUTHOR="pochii-dev"
 
@@ -40,7 +40,7 @@ cat << "EOF"
 EOF
 echo -e "${C_CYAN}${C_BOLD}     ⚡ NODE.JS & PM2 ENTERPRISE INTEGRATION FOR HESTIACP ⚡${C_RESET}"
 echo -e "${C_GRAY}                Desarrollado con ❤️ por ${C_WHITE}${C_BOLD}pochii-dev${C_RESET}"
-echo -e "${C_GRAY}          https://github.com/pochii-dev/hestia-nodejs${C_RESET}"
+echo -e "${C_GRAY}          https://github.com/PochiiGreen/hestia-nodejs${C_RESET}"
 echo ""
 
 # 1. Root Check
@@ -103,7 +103,7 @@ if [ ! -f "$SCRIPT_DIR/webapps/NodeJS/NodeJSSetup.php" ]; then
     if command -v git >/dev/null 2>&1; then
         git clone --depth 1 -b "$BRANCH" "$REPO_URL" "$TEMP_DIR" >/dev/null 2>&1 || {
             echo -e "${C_YELLOW}[!] Git clone falló, descargando archivo tarball...${C_RESET}"
-            curl -sSL "https://github.com/pochii-dev/hestia-nodejs/archive/refs/heads/${BRANCH}.tar.gz" | tar -xz -C "$TEMP_DIR" --strip-components=1
+            curl -sSL "https://github.com/PochiiGreen/hestia-nodejs/archive/refs/heads/${BRANCH}.tar.gz" | tar -xz -C "$TEMP_DIR" --strip-components=1
         }
     else
         apt-get update -qq && apt-get install -y -qq git curl ca-certificates >/dev/null 2>&1
