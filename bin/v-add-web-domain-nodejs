@@ -76,14 +76,17 @@ mkdir -p "$logs_dir" "$conf_dir" "$app_dir"
 
 cat <<EOF > "$conf_dir/nodeport.conf"
 # Node.js reverse proxy port mapping for $domain
-set \$node_port $port;
+proxy_pass http://127.0.0.1:$port;
 EOF
 chown "$user:$user" "$conf_dir/nodeport.conf"
 chmod 644 "$conf_dir/nodeport.conf"
 
-# Apply nodejs template in Hestia if command exists
+# Apply nodejs template in Hestia if command exists (handles both standalone nginx and nginx+apache2)
 if [ -x "/usr/local/hestia/bin/v-change-web-domain-tpl" ]; then
     /usr/local/hestia/bin/v-change-web-domain-tpl "$user" "$domain" "nodejs" "no" >/dev/null 2>&1 || true
+fi
+if [ -x "/usr/local/hestia/bin/v-change-web-domain-proxy-tpl" ]; then
+    /usr/local/hestia/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "nodejs" "no" >/dev/null 2>&1 || true
 fi
 
 #----------------------------------------------------------#
@@ -315,8 +318,9 @@ if [ -f "$app_dir/package.json" ]; then
     esac
 fi
 
-# Set proper ownership for domain files
+# Set proper ownership and permissions for domain files
 chown -R "$user:$user" "$app_dir" "$conf_dir"
+chmod 751 "$web_dir"
 chmod -R 755 "$app_dir"
 
 #----------------------------------------------------------#

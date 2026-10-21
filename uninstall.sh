@@ -35,9 +35,10 @@ echo "✔ Comandos CLI eliminados"
 rm -rf /usr/local/hestia/data/templates/starters/nodejs
 echo "✔ Plantillas iniciales eliminadas"
 
-# 5. Remove Nginx templates
+# 5. Remove Nginx & Web templates
 rm -f /usr/local/hestia/data/templates/web/nginx/nodejs.*
 rm -f /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.*
+rm -f /usr/local/hestia/data/templates/web/apache2/nodejs.* 2>/dev/null || true
 echo "✔ Plantillas Nginx eliminadas"
 
 # 6. Reload Nginx

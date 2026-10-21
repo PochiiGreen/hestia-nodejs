@@ -32,16 +32,16 @@ clear 2>/dev/null || true
 # ASCII Art Banner
 echo -e "${C_BRIGHT_GREEN}"
 cat << "EOF"
- ██╗  ██╗███████╗███████╗████████╗██╗ █████╗  ██████╗██████╗ 
- ██║  ██║██╔════╝██╔════╝╚══██╔══╝██║██╔══██╗██╔════╝██╔══██╗
- ███████║█████╗  ███████╗   ██║   ██║███████║██║     ██████╔╝
- ██╔══██║██╔══╝  ╚════██║   ██║   ██║██╔══██║██║     ██╔═══╝ 
- ██║  ██║███████╗███████║   ██║   ██║██║  ██║╚██████╗██║     
- ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝     
+  ██████╗  ██████╗  ██████╗██╗  ██╗██╗██╗    ██████╗ ███████╗██╗   ██╗
+  ██╔══██╗██╔═══██╗██╔════╝██║  ██║██║██║    ██╔══██╗██╔════╝██║   ██║
+  ██████╔╝██║   ██║██║     ███████║██║██║    ██║  ██║█████╗  ██║   ██║
+  ██╔═══╝ ██║   ██║██║     ██╔══██║██║██║    ██║  ██║██╔══╝  ╚██╗ ██╔╝
+  ██║     ╚██████╔╝╚██████╗██║  ██║██║██║    ██████╔╝███████╗ ╚████╔╝ 
+  ╚═╝      ╚═════╝  ╚═════╝╚═╝  ╚═╝╚═╝╚═╝    ╚═════╝ ╚══════╝  ╚═══╝  
 EOF
-echo -e "${C_CYAN}${C_BOLD}     ⚡ NODE.JS, PNPM & PM2 INTEGRATION FOR HESTIACP v1.10+ ⚡${C_RESET}"
-echo -e "${C_GRAY}                Desarrollado con ❤️ por ${C_WHITE}${C_BOLD}pochii-dev${C_RESET}"
-echo -e "${C_GRAY}          https://github.com/PochiiGreen/hestia-nodejs${C_RESET}"
+echo -e "${C_CYAN}${C_BOLD}     ⚡ NODE.JS • PNPM • PM2 ENTERPRISE SUITE FOR HESTIACP ⚡${C_RESET}"
+echo -e "${C_GRAY}                 Desarrollado con ❤️ por ${C_WHITE}${C_BOLD}pochii-dev${C_RESET}"
+echo -e "${C_GRAY}           https://github.com/PochiiGreen/hestia-nodejs${C_RESET}"
 echo ""
 
 # 1. Root Check
@@ -172,6 +172,12 @@ if [ -d "/usr/local/hestia/data/templates/web/nginx/php-fpm" ]; then
     cp "$SOURCE_DIR/templates/nginx/nodejs.stpl" /usr/local/hestia/data/templates/web/nginx/php-fpm/
     chmod 644 /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.* 2>/dev/null || true
 fi
+
+if [ -d "/usr/local/hestia/data/templates/web/apache2" ]; then
+    cp "$SOURCE_DIR/templates/nginx/nodejs.tpl" /usr/local/hestia/data/templates/web/apache2/ 2>/dev/null || true
+    cp "$SOURCE_DIR/templates/nginx/nodejs.stpl" /usr/local/hestia/data/templates/web/apache2/ 2>/dev/null || true
+    chmod 644 /usr/local/hestia/data/templates/web/apache2/nodejs.* 2>/dev/null || true
+fi
 echo -e "\r  ${C_GREEN}✔${C_RESET} [3/6] Plantilla única Nginx 'nodejs' instalada (soporta cualquier puerto: 3041, etc.)."
 
 # 4. Install Starter Boilerplates
@@ -222,11 +228,13 @@ echo ""
 # ASCII Summary Card
 echo -e "${C_GREEN}${C_BOLD}"
 cat << "EOF"
- ╔════════════════════════════════════════════════════════════════════╗
- ║           🎉  ¡INSTALACIÓN COMPLETADA EXITOSAMENTE!  🎉           ║
- ║                                                                    ║
- ║  Autor: pochii-dev          Repo: github.com/PochiiGreen/hestia-nodejs ║
- ╚════════════════════════════════════════════════════════════════════╝
+ ╔═══════════════════════════════════════════════════════════════════════════════╗
+ ║                🎉  ¡INSTALACIÓN COMPLETADA EXITOSAMENTE!  🎉                 ║
+ ║                                                                               ║
+ ║   Desarrollado con ❤️ por: pochii-dev (PochiiGreen)                           ║
+ ║   Repositorio Oficial:     https://github.com/PochiiGreen/hestia-nodejs       ║
+ ║   Compatibilidad:          HestiaCP v1.10.x & v1.10.5+ (Debian / Ubuntu)      ║
+ ╚═══════════════════════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${C_RESET}"
 
