@@ -22,25 +22,31 @@ if [ -d "/usr/local/hestia/web/src/app/WebApp/Installers/NodeJS" ]; then
     echo "✔ Módulo WebApp NodeJS eliminado de /usr/local/hestia/web/src/app/WebApp/Installers/NodeJS"
 fi
 
-# 2. Remove CLI commands
+# 2. Remove corrupted or legacy websocket upgrade file if present
+rm -f /etc/nginx/conf.d/websocket_upgrade.conf* 2>/dev/null || true
+echo "✔ Verificada limpieza de /etc/nginx/conf.d"
+
+# 3. Remove CLI commands
 rm -f /usr/local/hestia/bin/v-*-nodejs
 rm -f /usr/bin/v-*-nodejs
 echo "✔ Comandos CLI eliminados"
 
-# 3. Remove starters
+# 4. Remove starters
 rm -rf /usr/local/hestia/data/templates/starters/nodejs
 echo "✔ Plantillas iniciales eliminadas"
 
-# 4. Remove Nginx templates
-rm -f /usr/local/hestia/data/templates/web/nginx/nodejs*
-rm -f /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs*
+# 5. Remove Nginx templates
+rm -f /usr/local/hestia/data/templates/web/nginx/nodejs.*
+rm -f /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.*
 echo "✔ Plantillas Nginx eliminadas"
 
-# 5. Reload Nginx
+# 6. Reload Nginx
 if command -v nginx >/dev/null 2>&1; then
     if nginx -t >/dev/null 2>&1; then
         systemctl reload nginx 2>/dev/null || true
-        echo "✔ Nginx recargado con éxito"
+        echo "✔ Nginx verificado y recargado con éxito"
+    else
+        echo "⚠ Revise la sintaxis de Nginx: nginx -t"
     fi
 fi
 

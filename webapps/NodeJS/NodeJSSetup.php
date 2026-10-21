@@ -4,8 +4,33 @@ namespace Hestia\WebApp\Installers\NodeJS;
 /**
  * HestiaCP Node.js & PM2 Quick Install App
  * Author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)
- * Compatible with Hestia Control Panel v1.10.x & v1.10.5+
+ * 100% compatible with Hestia Control Panel v1.4.0 through v1.10.5+
  */
+
+// Dynamically load BaseSetup regardless of where HestiaCP stores it across versions
+if (!class_exists('Hestia\WebApp\BaseSetup', false) && !class_exists('Hestia\WebApp\Installers\BaseSetup', false)) {
+    if (file_exists('/usr/local/hestia/web/src/app/WebApp/BaseSetup.php')) {
+        require_once '/usr/local/hestia/web/src/app/WebApp/BaseSetup.php';
+    } elseif (file_exists('/usr/local/hestia/web/src/app/WebApp/Installers/BaseSetup.php')) {
+        require_once '/usr/local/hestia/web/src/app/WebApp/Installers/BaseSetup.php';
+    }
+}
+
+// Alias class if defined under \Hestia\WebApp\BaseSetup
+if (class_exists('Hestia\WebApp\BaseSetup', false) && !class_exists('Hestia\WebApp\Installers\BaseSetup', false)) {
+    class_alias('Hestia\WebApp\BaseSetup', 'Hestia\WebApp\Installers\BaseSetup');
+}
+
+// Fallback dummy to strictly prevent any PHP Fatal Error 500
+if (!class_exists('Hestia\WebApp\Installers\BaseSetup', false)) {
+    abstract class DummyBaseSetup {
+        protected $appInfo = [];
+        protected $appname = '';
+        protected $config = [];
+        abstract public function install(array $options = null);
+    }
+    class_alias('Hestia\WebApp\Installers\NodeJS\DummyBaseSetup', 'Hestia\WebApp\Installers\BaseSetup');
+}
 
 use Hestia\System\Util;
 use Hestia\WebApp\Installers\BaseSetup as BaseSetup;

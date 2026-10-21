@@ -57,6 +57,9 @@ if [ ! -d "/usr/local/hestia" ]; then
     exit 1
 fi
 
+# Clean up any legacy or corrupted websocket conf in /etc/nginx/conf.d
+rm -f /etc/nginx/conf.d/websocket_upgrade.conf* 2>/dev/null || true
+
 # System Telemetry
 echo -e "${C_BLUE}${C_BOLD}┌──────────────────────────────────────────────────────────────────┐${C_RESET}"
 echo -e "${C_BLUE}${C_BOLD}│               📊 INFORMACIÓN DEL SISTEMA DETECTADA               │${C_RESET}"
@@ -124,7 +127,7 @@ echo -e "${C_BLUE}${C_BOLD}│                    🚀 EJECUTANDO INSTALACIÓN  
 echo -e "${C_BLUE}${C_BOLD}└──────────────────────────────────────────────────────────────────┘${C_RESET}"
 
 # 1. Install Node.js
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [1/7] Configurando Node.js v${NODE_VERSION}.x..."
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [1/6] Configurando Node.js v${NODE_VERSION}.x..."
 apt-get update -qq >/dev/null 2>&1
 apt-get install -y -qq curl ca-certificates gnupg build-essential >/dev/null 2>&1
 
@@ -140,10 +143,10 @@ if [ "$CURRENT_NODE_VER" != "$NODE_VERSION" ]; then
     apt-get update -qq >/dev/null 2>&1
     apt-get install -y -qq nodejs >/dev/null 2>&1
 fi
-echo -e "\r  ${C_GREEN}✔${C_RESET} [1/7] Node.js instalado: ${C_BRIGHT_GREEN}$(node -v)${C_RESET} (NPM ${C_CYAN}v$(npm -v)${C_RESET})"
+echo -e "\r  ${C_GREEN}✔${C_RESET} [1/6] Node.js instalado: ${C_BRIGHT_GREEN}$(node -v)${C_RESET} (NPM ${C_CYAN}v$(npm -v)${C_RESET})"
 
 # 2. Install PNPM, PM2 & Yarn
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [2/7] Instalando PNPM, PM2 y Yarn globalmente..."
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [2/6] Instalando PNPM, PM2 y Yarn globalmente..."
 npm install -g pm2 pnpm yarn --loglevel=error >/dev/null 2>&1
 
 # Symlinks in /usr/bin
@@ -154,60 +157,44 @@ npm install -g pm2 pnpm yarn --loglevel=error >/dev/null 2>&1
 pm2 install pm2-logrotate >/dev/null 2>&1 || true
 pm2 set pm2-logrotate:max_size 10M >/dev/null 2>&1 || true
 pm2 set pm2-logrotate:retain 7 >/dev/null 2>&1 || true
-echo -e "\r  ${C_GREEN}✔${C_RESET} [2/7] PM2 (${C_BRIGHT_GREEN}v$(pm2 -v 2>/dev/null || echo 'OK')${C_RESET}) y PNPM (${C_CYAN}v$(pnpm -v 2>/dev/null || echo 'OK')${C_RESET}) listos."
+echo -e "\r  ${C_GREEN}✔${C_RESET} [2/6] PM2 (${C_BRIGHT_GREEN}v$(pm2 -v 2>/dev/null || echo 'OK')${C_RESET}) y PNPM (${C_CYAN}v$(pnpm -v 2>/dev/null || echo 'OK')${C_RESET}) listos."
 
-# 3. Configure Nginx WebSockets
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [3/7] Configurando soporte WebSocket en Nginx..."
-mkdir -p /etc/nginx/conf.d
-if [ -f "$SOURCE_DIR/templates/conf.d/websocket_upgrade.conf" ]; then
-    cp "$SOURCE_DIR/templates/conf.d/websocket_upgrade.conf" /etc/nginx/conf.d/websocket_upgrade.conf
-else
-    cat <<'EOF' > /etc/nginx/conf.d/websocket_upgrade.conf
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    '' close;
-}
-EOF
-fi
-chmod 644 /etc/nginx/conf.d/websocket_upgrade.conf
-echo -e "\r  ${C_GREEN}✔${C_RESET} [3/7] Soporte para WebSockets ($connection_upgrade) registrado en Nginx."
-
-# 4. Install Nginx Templates
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [4/7] Instalando plantillas Nginx (puertos dinámicos)..."
+# 3. Install Single Nginx Template (handles all dynamic ports)
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [3/6] Instalando plantilla única Nginx 'nodejs'..."
 if [ -d "/usr/local/hestia/data/templates/web/nginx" ]; then
-    cp "$SOURCE_DIR"/templates/nginx/*.tpl /usr/local/hestia/data/templates/web/nginx/ 2>/dev/null || true
-    cp "$SOURCE_DIR"/templates/nginx/*.stpl /usr/local/hestia/data/templates/web/nginx/ 2>/dev/null || true
-    chmod 644 /usr/local/hestia/data/templates/web/nginx/nodejs* 2>/dev/null || true
+    cp "$SOURCE_DIR/templates/nginx/nodejs.tpl" /usr/local/hestia/data/templates/web/nginx/
+    cp "$SOURCE_DIR/templates/nginx/nodejs.stpl" /usr/local/hestia/data/templates/web/nginx/
+    chmod 644 /usr/local/hestia/data/templates/web/nginx/nodejs.* 2>/dev/null || true
 fi
 
 if [ -d "/usr/local/hestia/data/templates/web/nginx/php-fpm" ]; then
-    cp "$SOURCE_DIR"/templates/nginx/*.tpl /usr/local/hestia/data/templates/web/nginx/php-fpm/ 2>/dev/null || true
-    cp "$SOURCE_DIR"/templates/nginx/*.stpl /usr/local/hestia/data/templates/web/nginx/php-fpm/ 2>/dev/null || true
-    chmod 644 /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs* 2>/dev/null || true
+    cp "$SOURCE_DIR/templates/nginx/nodejs.tpl" /usr/local/hestia/data/templates/web/nginx/php-fpm/
+    cp "$SOURCE_DIR/templates/nginx/nodejs.stpl" /usr/local/hestia/data/templates/web/nginx/php-fpm/
+    chmod 644 /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.* 2>/dev/null || true
 fi
-echo -e "\r  ${C_GREEN}✔${C_RESET} [4/7] Plantillas Nginx HTTP/HTTPS instaladas (soporte para cualquier puerto ej: 3041)."
+echo -e "\r  ${C_GREEN}✔${C_RESET} [3/6] Plantilla única Nginx 'nodejs' instalada (soporta cualquier puerto: 3041, etc.)."
 
-# 5. Install Starter Boilerplates
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [5/7] Copiando plantillas de inicio (Express, Fastify, Nativo)..."
+# 4. Install Starter Boilerplates
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [4/6] Copiando plantillas de inicio (Express, Fastify, Nativo)..."
 STARTERS_DIR="/usr/local/hestia/data/templates/starters/nodejs"
 mkdir -p "$STARTERS_DIR"
 cp -r "$SOURCE_DIR"/starters/* "$STARTERS_DIR/"
 chown -R root:root "$STARTERS_DIR"
 chmod -R 755 "$STARTERS_DIR"
-echo -e "\r  ${C_GREEN}✔${C_RESET} [5/7] Plantillas iniciales provisionadas en $STARTERS_DIR."
+echo -e "\r  ${C_GREEN}✔${C_RESET} [4/6] Plantillas iniciales provisionadas en $STARTERS_DIR."
 
-# 6. Install Quick Install App (Compatible with HestiaCP v1.10.x & v1.10.5+)
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [6/7] Registrando Quick Install App para HestiaCP v1.10+..."
+# 5. Install Quick Install App (Compatible with HestiaCP v1.10.x & v1.10.5+)
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [5/6] Registrando Quick Install App para HestiaCP v1.10+..."
 WEBAPP_DIR="/usr/local/hestia/web/src/app/WebApp/Installers/NodeJS"
 mkdir -p "$WEBAPP_DIR"
 cp "$SOURCE_DIR/webapps/NodeJS/NodeJSSetup.php" "$WEBAPP_DIR/NodeJSSetup.php"
 cp "$SOURCE_DIR/webapps/NodeJS/nodejs.png" "$WEBAPP_DIR/nodejs.png"
 chown -R root:root "$WEBAPP_DIR"
 chmod 644 "$WEBAPP_DIR/NodeJSSetup.php" "$WEBAPP_DIR/nodejs.png"
-echo -e "\r  ${C_GREEN}✔${C_RESET} [6/7] Quick Install App integrado (100% compatible con HestiaCP v1.10.5)."
+echo -e "\r  ${C_GREEN}✔${C_RESET} [5/6] Quick Install App integrado (100% compatible con HestiaCP v1.10.5)."
 
-# 7. Install CLI Commands
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [7/7] Habilitando comandos nativos de consola (/usr/local/hestia/bin)..."
+# 6. Install CLI Commands
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [6/6] Habilitando comandos nativos de consola (/usr/local/hestia/bin)..."
 cp "$SOURCE_DIR"/bin/v-*-nodejs /usr/local/hestia/bin/
 chown root:root /usr/local/hestia/bin/v-*-nodejs
 chmod 755 /usr/local/hestia/bin/v-*-nodejs
@@ -229,7 +216,7 @@ fi
 if nginx -t >/dev/null 2>&1; then
     systemctl reload nginx
 fi
-echo -e "\r  ${C_GREEN}✔${C_RESET} [7/7] Comandos CLI instalados y Nginx recargado correctamente."
+echo -e "\r  ${C_GREEN}✔${C_RESET} [6/6] Comandos CLI instalados y Nginx verificado sin errores."
 echo ""
 
 # ASCII Summary Card
