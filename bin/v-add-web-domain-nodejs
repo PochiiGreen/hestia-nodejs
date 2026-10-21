@@ -1,9 +1,9 @@
 #!/bin/bash
 # info: configure nodejs app and pm2 for a web domain in hestiacp
-# options: USER DOMAIN [PORT] [APP_NAME] [STARTUP_FILE] [APP_TEMPLATE] [NODE_ENV] [INSTANCES] [AUTO_START]
+# options: USER DOMAIN [PORT] [APP_NAME] [STARTUP_FILE] [PKG_MGR] [APP_TEMPLATE] [NODE_ENV] [INSTANCES] [AUTO_START]
 #
-# author: pochii-dev (https://github.com/pochii-dev)
-# example: v-add-web-domain-nodejs admin example.com 3041 myapp app.js express production 1 yes
+# author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)
+# example: v-add-web-domain-nodejs admin example.com 3041 myapp app.js pnpm express production 1 yes
 
 #----------------------------------------------------------#
 #                    Variable & Config                     #
@@ -14,10 +14,11 @@ domain="$2"
 port="${3:-3000}"
 app_name="${4:-node-$domain}"
 startup_file="${5:-app.js}"
-app_template="${6:-express}"
-node_env="${7:-production}"
-instances="${8:-1}"
-auto_start="${9:-yes}"
+pkg_mgr="${6:-pnpm}"
+app_template="${7:-express}"
+node_env="${8:-production}"
+instances="${9:-1}"
+auto_start="${10:-yes}"
 
 # Sanitize app name
 app_name=$(echo "$app_name" | tr -cd 'a-zA-Z0-9_-')
@@ -26,6 +27,12 @@ app_name=$(echo "$app_name" | tr -cd 'a-zA-Z0-9_-')
 # Sanitize port (supports ANY port e.g. 3041, 4000, 8080)
 port=$(echo "$port" | tr -cd '0-9')
 [ -z "$port" ] && port="3000"
+
+# Sanitize package manager (pnpm, npm, yarn)
+case "$pkg_mgr" in
+    pnpm|npm|yarn) ;;
+    *) pkg_mgr="pnpm" ;;
+esac
 
 # Include Hestia functions if available
 # shellcheck source=/usr/local/hestia/func/main.sh
@@ -39,7 +46,7 @@ port=$(echo "$port" | tr -cd '0-9')
 
 if [ -z "$user" ] || [ -z "$domain" ]; then
     echo "Error: USER and DOMAIN are required."
-    echo "Usage: v-add-web-domain-nodejs USER DOMAIN [PORT] [APP_NAME] [STARTUP_FILE] [TEMPLATE] [ENV] [INSTANCES] [AUTO_START]"
+    echo "Usage: v-add-web-domain-nodejs USER DOMAIN [PORT] [APP_NAME] [STARTUP_FILE] [PKG_MGR] [TEMPLATE] [ENV] [INSTANCES] [AUTO_START]"
     exit 1
 fi
 
@@ -247,32 +254,59 @@ module.exports = {
 };
 EOF
 
+# Provide ecosystem.config.cjs for projects with "type": "module" in package.json
+cp -f "$doc_root/ecosystem.config.js" "$doc_root/ecosystem.config.cjs"
+
 #----------------------------------------------------------#
-#              Step 5: Permissions & NPM Install           #
+#              Step 5: Install Dependencies (PNPM/NPM)     #
 #----------------------------------------------------------#
 
 chown -R "$user:$user" "$doc_root" "$logs_dir"
 chmod 755 "$doc_root"
 
-# Run npm install if package.json has dependencies and template isn't minimal
 if [ -f "$doc_root/package.json" ] && [ "$app_template" != "minimal" ] && [ "$app_template" != "blank" ]; then
-    if command -v npm >/dev/null 2>&1; then
-        echo "Installing npm dependencies for $app_name..."
-        su - "$user" -s /bin/bash -c "cd '$doc_root' && npm install --no-audit --no-fund" >/dev/null 2>&1 || true
-    fi
+    case "$pkg_mgr" in
+        pnpm)
+            if ! command -v pnpm >/dev/null 2>&1; then
+                npm install -g pnpm --loglevel=error >/dev/null 2>&1 || true
+            fi
+            if command -v pnpm >/dev/null 2>&1; then
+                echo "Installing dependencies using pnpm for $app_name..."
+                su - "$user" -s /bin/bash -c "cd '$doc_root' && pnpm install --prod" >/dev/null 2>&1 || true
+            else
+                echo "Falling back to npm install for $app_name..."
+                su - "$user" -s /bin/bash -c "cd '$doc_root' && npm install --no-audit --no-fund" >/dev/null 2>&1 || true
+            fi
+            ;;
+        yarn)
+            if ! command -v yarn >/dev/null 2>&1; then
+                npm install -g yarn --loglevel=error >/dev/null 2>&1 || true
+            fi
+            su - "$user" -s /bin/bash -c "cd '$doc_root' && yarn install --production" >/dev/null 2>&1 || true
+            ;;
+        npm|*)
+            if command -v npm >/dev/null 2>&1; then
+                echo "Installing dependencies using npm for $app_name..."
+                su - "$user" -s /bin/bash -c "cd '$doc_root' && npm install --no-audit --no-fund" >/dev/null 2>&1 || true
+            fi
+            ;;
+    esac
 fi
 
+chown -R "$user:$user" "$doc_root"
+
 #----------------------------------------------------------#
-#              Step 6: PM2 Service & Process Start         #
+#              Step 6: PM2 Service & Immediate Start       #
 #----------------------------------------------------------#
 
 if command -v pm2 >/dev/null 2>&1; then
+    # Ensure systemd service is active for this user
     pm2 startup systemd -u "$user" --hp "/home/$user" >/dev/null 2>&1 || true
     systemctl enable "pm2-$user" >/dev/null 2>&1 || true
     systemctl start "pm2-$user" >/dev/null 2>&1 || true
 
     if [ "$auto_start" = "yes" ]; then
-        echo "Starting PM2 application '$app_name'..."
+        echo "Starting PM2 application '$app_name' immediately..."
         su - "$user" -s /bin/bash -c "pm2 delete '$app_name' 2>/dev/null || true"
         su - "$user" -s /bin/bash -c "cd '$doc_root' && pm2 start ecosystem.config.js"
         su - "$user" -s /bin/bash -c "pm2 save"
@@ -291,5 +325,5 @@ if systemctl is-active --quiet nginx; then
     nginx -t >/dev/null 2>&1 && systemctl reload nginx
 fi
 
-echo "Success: Node.js application '$app_name' configured for domain '$domain' on port $port."
+echo "Success: Node.js application '$app_name' configured on port $port and running with PM2."
 exit 0

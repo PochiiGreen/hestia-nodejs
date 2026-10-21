@@ -1,7 +1,8 @@
 #!/bin/bash
 #===================================================================================#
-#        HestiaCP Node.js & PM2 Full Integration Installer                          #
-#        Author: pochii-dev (https://github.com/pochii-dev)                         #
+#        HestiaCP Node.js, PNPM & PM2 Full Integration Installer                    #
+#        Author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)          #
+#        Compatible with Hestia Control Panel v1.10.x & v1.10.5+                    #
 #===================================================================================#
 
 set -e
@@ -10,7 +11,7 @@ set -e
 NODE_VERSION="${NODE_VERSION:-20}"
 REPO_URL="${REPO_URL:-https://github.com/PochiiGreen/hestia-nodejs.git}"
 BRANCH="${BRANCH:-main}"
-AUTHOR="pochii-dev"
+AUTHOR="PochiiGreen"
 
 # Terminal Colors & Styles
 C_RESET='\033[0m'
@@ -38,7 +39,7 @@ cat << "EOF"
  ██║  ██║███████╗███████║   ██║   ██║██║  ██║╚██████╗██║     
  ╚═╝  ╚═╝╚══════╝╚══════╝   ╚═╝   ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝     
 EOF
-echo -e "${C_CYAN}${C_BOLD}     ⚡ NODE.JS & PM2 ENTERPRISE INTEGRATION FOR HESTIACP ⚡${C_RESET}"
+echo -e "${C_CYAN}${C_BOLD}     ⚡ NODE.JS, PNPM & PM2 INTEGRATION FOR HESTIACP v1.10+ ⚡${C_RESET}"
 echo -e "${C_GRAY}                Desarrollado con ❤️ por ${C_WHITE}${C_BOLD}pochii-dev${C_RESET}"
 echo -e "${C_GRAY}          https://github.com/PochiiGreen/hestia-nodejs${C_RESET}"
 echo ""
@@ -56,12 +57,11 @@ if [ ! -d "/usr/local/hestia" ]; then
     exit 1
 fi
 
-# System Telemetry & Interesting Facts
+# System Telemetry
 echo -e "${C_BLUE}${C_BOLD}┌──────────────────────────────────────────────────────────────────┐${C_RESET}"
 echo -e "${C_BLUE}${C_BOLD}│               📊 INFORMACIÓN DEL SISTEMA DETECTADA               │${C_RESET}"
 echo -e "${C_BLUE}${C_BOLD}└──────────────────────────────────────────────────────────────────┘${C_RESET}"
 
-# OS Details
 OS_PRETTY="Linux Desconocido"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
@@ -70,14 +70,12 @@ fi
 KERNEL_VER=$(uname -r)
 ARCH=$(uname -m)
 
-# Hardware Telemetry
 CPU_MODEL=$(grep -m1 "model name" /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed 's/^[ \t]*//' || echo "CPU Genérica")
 CPU_CORES=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || echo "1")
 MEM_TOTAL=$(free -m 2>/dev/null | awk '/^Mem:/{print $2}')
 MEM_AVAIL=$(free -m 2>/dev/null | awk '/^Mem:/{print $7}')
 [ -z "$MEM_AVAIL" ] && MEM_AVAIL=$(free -m 2>/dev/null | awk '/^Mem:/{print $4}')
 
-# HestiaCP Configuration Details
 HESTIA_VER="1.x"
 if [ -f /usr/local/hestia/conf/hestia.conf ]; then
     HESTIA_VER=$(grep "VERSION=" /usr/local/hestia/conf/hestia.conf 2>/dev/null | cut -d"'" -f2 || echo "1.x")
@@ -93,7 +91,7 @@ echo -e "  ${C_CYAN}• Versión HestiaCP:${C_RESET}  ${C_WHITE}v${HESTIA_VER} (
 echo -e "  ${C_CYAN}• Versión Node.js:${C_RESET}   ${C_BRIGHT_GREEN}v${NODE_VERSION}.x LTS (NodeSource Repo)${C_RESET}"
 echo ""
 
-# Handle Source Directory (supports curl | bash or git clone)
+# Handle Source Directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 TEMP_DIR=""
 
@@ -144,20 +142,19 @@ if [ "$CURRENT_NODE_VER" != "$NODE_VERSION" ]; then
 fi
 echo -e "\r  ${C_GREEN}✔${C_RESET} [1/7] Node.js instalado: ${C_BRIGHT_GREEN}$(node -v)${C_RESET} (NPM ${C_CYAN}v$(npm -v)${C_RESET})"
 
-# 2. Install PM2
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [2/7] Instalando gestor PM2 y rotación de logs..."
-if ! command -v pm2 >/dev/null 2>&1; then
-    npm install -g pm2 --loglevel=error >/dev/null 2>&1
-fi
+# 2. Install PNPM, PM2 & Yarn
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [2/7] Instalando PNPM, PM2 y Yarn globalmente..."
+npm install -g pm2 pnpm yarn --loglevel=error >/dev/null 2>&1
 
-if [ -f /usr/local/bin/pm2 ] && [ ! -f /usr/bin/pm2 ]; then
-    ln -s /usr/local/bin/pm2 /usr/bin/pm2 2>/dev/null || true
-fi
+# Symlinks in /usr/bin
+[ -f /usr/local/bin/pm2 ] && [ ! -f /usr/bin/pm2 ] && ln -s /usr/local/bin/pm2 /usr/bin/pm2 2>/dev/null || true
+[ -f /usr/local/bin/pnpm ] && [ ! -f /usr/bin/pnpm ] && ln -s /usr/local/bin/pnpm /usr/bin/pnpm 2>/dev/null || true
+[ -f /usr/local/bin/yarn ] && [ ! -f /usr/bin/yarn ] && ln -s /usr/local/bin/yarn /usr/bin/yarn 2>/dev/null || true
 
 pm2 install pm2-logrotate >/dev/null 2>&1 || true
 pm2 set pm2-logrotate:max_size 10M >/dev/null 2>&1 || true
 pm2 set pm2-logrotate:retain 7 >/dev/null 2>&1 || true
-echo -e "\r  ${C_GREEN}✔${C_RESET} [2/7] PM2 instalado: ${C_BRIGHT_GREEN}v$(pm2 -v)${C_RESET} con rotación de logs activa."
+echo -e "\r  ${C_GREEN}✔${C_RESET} [2/7] PM2 (${C_BRIGHT_GREEN}v$(pm2 -v 2>/dev/null || echo 'OK')${C_RESET}) y PNPM (${C_CYAN}v$(pnpm -v 2>/dev/null || echo 'OK')${C_RESET}) listos."
 
 # 3. Configure Nginx WebSockets
 echo -ne "  ${C_YELLOW}⟳${C_RESET} [3/7] Configurando soporte WebSocket en Nginx..."
@@ -199,15 +196,15 @@ chown -R root:root "$STARTERS_DIR"
 chmod -R 755 "$STARTERS_DIR"
 echo -e "\r  ${C_GREEN}✔${C_RESET} [5/7] Plantillas iniciales provisionadas en $STARTERS_DIR."
 
-# 6. Install Quick Install App
-echo -ne "  ${C_YELLOW}⟳${C_RESET} [6/7] Registrando icono y app en Quick Install del panel Hestia..."
+# 6. Install Quick Install App (Compatible with HestiaCP v1.10.x & v1.10.5+)
+echo -ne "  ${C_YELLOW}⟳${C_RESET} [6/7] Registrando Quick Install App para HestiaCP v1.10+..."
 WEBAPP_DIR="/usr/local/hestia/web/src/app/WebApp/Installers/NodeJS"
 mkdir -p "$WEBAPP_DIR"
 cp "$SOURCE_DIR/webapps/NodeJS/NodeJSSetup.php" "$WEBAPP_DIR/NodeJSSetup.php"
 cp "$SOURCE_DIR/webapps/NodeJS/nodejs.png" "$WEBAPP_DIR/nodejs.png"
 chown -R root:root "$WEBAPP_DIR"
 chmod 644 "$WEBAPP_DIR/NodeJSSetup.php" "$WEBAPP_DIR/nodejs.png"
-echo -e "\r  ${C_GREEN}✔${C_RESET} [6/7] Quick Install App integrado con icono oficial en el catálogo de HestiaCP."
+echo -e "\r  ${C_GREEN}✔${C_RESET} [6/7] Quick Install App integrado (100% compatible con HestiaCP v1.10.5)."
 
 # 7. Install CLI Commands
 echo -ne "  ${C_YELLOW}⟳${C_RESET} [7/7] Habilitando comandos nativos de consola (/usr/local/hestia/bin)..."
@@ -220,11 +217,11 @@ for cmd in /usr/local/hestia/bin/v-*-nodejs; do
     [ ! -e "/usr/bin/$base" ] && ln -s "$cmd" "/usr/bin/$base" 2>/dev/null || true
 done
 
-# Patch v-run-cli-cmd whitelist
+# Patch v-run-cli-cmd whitelist to allow node, npm, pnpm, pm2, yarn, npx
 V_RUN_CMD="/usr/local/hestia/bin/v-run-cli-cmd"
 if [ -f "$V_RUN_CMD" ]; then
-    if ! grep -q "pm2" "$V_RUN_CMD"; then
-        sed -i 's/composer|wp|/composer|wp|node|npm|pm2|npx|/g' "$V_RUN_CMD" 2>/dev/null || true
+    if ! grep -q "pnpm" "$V_RUN_CMD"; then
+        sed -i 's/composer|wp|/composer|wp|node|npm|pnpm|pm2|yarn|npx|/g' "$V_RUN_CMD" 2>/dev/null || true
     fi
 fi
 
@@ -241,32 +238,28 @@ cat << "EOF"
  ╔════════════════════════════════════════════════════════════════════╗
  ║           🎉  ¡INSTALACIÓN COMPLETADA EXITOSAMENTE!  🎉           ║
  ║                                                                    ║
- ║  Autor: pochii-dev          Repo: github.com/pochii-dev/hestia-nodejs ║
+ ║  Autor: pochii-dev          Repo: github.com/PochiiGreen/hestia-nodejs ║
  ╚════════════════════════════════════════════════════════════════════╝
 EOF
 echo -e "${C_RESET}"
 
-echo -e "${C_WHITE}${C_BOLD}📌 Resumen de Capacidades y Uso:${C_RESET}"
+echo -e "${C_WHITE}${C_BOLD}📌 Resumen de Novedades y Uso en HestiaCP v1.10.5:${C_RESET}"
 echo ""
-echo -e "  ${C_CYAN}1. Soporte de Puertos Dinámicos:${C_RESET}"
-echo -e "     Puedes asignar ${C_BRIGHT_GREEN}cualquier puerto${C_RESET} (ej: ${C_YELLOW}3041${C_RESET}, 5000, 8080, etc.)."
-echo -e "     Nginx redirige el tráfico automáticamente mediante ${C_WHITE}nodeport.conf${C_RESET}."
+echo -e "  ${C_CYAN}1. Soporte Nativo para PNPM, NPM y YARN:${C_RESET}"
+echo -e "     Puedes elegir ${C_BRIGHT_GREEN}pnpm${C_RESET} para instalar dependencias ultrarrápidas y ahorrar espacio en disco."
 echo ""
-echo -e "  ${C_CYAN}2. Desde el Panel Web (HestiaCP):${C_RESET}"
-echo -e "     Ingresa a ${C_WHITE}WEB${C_RESET} -> Tu Dominio -> ${C_WHITE}Quick Install App${C_RESET} -> Selecciona ${C_BRIGHT_GREEN}Node.js & PM2${C_RESET}."
-echo -e "     ¡Configura tu puerto (ej: 3041), framework y despliega en 1 clic!"
+echo -e "  ${C_CYAN}2. Soporte de Cualquier Puerto (ej: 3041):${C_RESET}"
+echo -e "     Asigna ${C_BRIGHT_GREEN}cualquier puerto${C_RESET} (ej: ${C_YELLOW}3041${C_RESET}, 4000, 5000, 8080). Nginx lo resuelve dinámicamente."
 echo ""
-echo -e "  ${C_CYAN}3. Comandos de Terminal (CLI):${C_RESET}"
-echo -e "     ${C_YELLOW}v-add-web-domain-nodejs${C_RESET} admin midominio.com 3041 mi-app app.js express production 1 yes"
+echo -e "  ${C_CYAN}3. Ecosystem Automático y Ejecución Inmediata:${C_RESET}"
+echo -e "     Genera ${C_WHITE}ecosystem.config.js${C_RESET} y ${C_WHITE}ecosystem.config.cjs${C_RESET} y pone la app a correr con PM2 al instante."
+echo ""
+echo -e "  ${C_CYAN}4. Comandos de Consola (CLI):${C_RESET}"
+echo -e "     ${C_YELLOW}v-add-web-domain-nodejs${C_RESET} admin midominio.com 3041 mi-app app.js pnpm express production 1 yes"
 echo -e "     ${C_YELLOW}v-restart-web-domain-nodejs${C_RESET} admin midominio.com"
-echo -e "     ${C_YELLOW}v-list-web-domain-nodejs${C_RESET} [admin]"
-echo -e "     ${C_YELLOW}v-stop-web-domain-nodejs${C_RESET} admin midominio.com"
-echo -e "     ${C_YELLOW}v-delete-web-domain-nodejs${C_RESET} admin midominio.com"
-echo ""
-echo -e "  ${C_CYAN}4. Persistencia PM2 & Systemd:${C_RESET}"
-echo -e "     El servicio ${C_WHITE}pm2-<usuario>${C_RESET} iniciará todas las aplicaciones automáticamente al reiniciar el VPS."
+echo -e "     ${C_YELLOW}v-list-web-domain-nodejs${C_RESET}"
 echo ""
 echo -e "${C_GRAY}──────────────────────────────────────────────────────────────────────${C_RESET}"
-echo -e "${C_BRIGHT_GREEN}${C_BOLD}🚀 ¡Tu servidor HestiaCP está listo para correr Node.js en producción!${C_RESET}"
+echo -e "${C_BRIGHT_GREEN}${C_BOLD}🚀 ¡HestiaCP v1.10.5 y Node.js listos para producción!${C_RESET}"
 echo ""
 exit 0
