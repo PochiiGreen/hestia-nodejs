@@ -56,7 +56,7 @@ if ! id "$user" >/dev/null 2>&1; then
 fi
 
 web_dir="/home/$user/web/$domain"
-app_dir="$web_dir/private/nodeapp"
+app_dir="$web_dir/public_html"
 doc_root="$web_dir/public_html"
 conf_dir="/home/$user/conf/web/$domain"
 logs_dir="$web_dir/logs"
@@ -68,7 +68,7 @@ if [ ! -d "$web_dir" ]; then
 fi
 
 # Ensure all target directories exist
-mkdir -p "$logs_dir" "$conf_dir" "$doc_root" "$web_dir/private" "$app_dir"
+mkdir -p "$logs_dir" "$conf_dir" "$app_dir"
 
 #----------------------------------------------------------#
 #              Step 1: Configure Nginx Port                #
@@ -87,16 +87,23 @@ if [ -x "/usr/local/hestia/bin/v-change-web-domain-tpl" ]; then
 fi
 
 #----------------------------------------------------------#
-#          Step 2: Starter Boilerplate in private/nodeapp  #
+#       Step 2: Clean Up & Consolidate in public_html      #
 #----------------------------------------------------------#
 
-# Migrate any existing app from public_html if user previously placed it there
-if [ -f "$doc_root/package.json" ] && [ ! -f "$app_dir/package.json" ]; then
-    echo "Migrating existing Node.js project from public_html to private/nodeapp..."
-    cp -r "$doc_root"/* "$app_dir/" 2>/dev/null || true
-    [ -f "$doc_root/.env" ] && cp "$doc_root/.env" "$app_dir/" 2>/dev/null || true
-    rm -rf "$doc_root/node_modules" 2>/dev/null || true
+# If files were previously in private/nodeapp, migrate them to public_html
+if [ -d "$web_dir/private/nodeapp" ] && [ -f "$web_dir/private/nodeapp/package.json" ]; then
+    echo "Consolidating files from private/nodeapp to public_html..."
+    cp -r "$web_dir/private/nodeapp"/* "$app_dir/" 2>/dev/null || true
+    [ -f "$web_dir/private/nodeapp/.env" ] && cp "$web_dir/private/nodeapp/.env" "$app_dir/" 2>/dev/null || true
+    rm -rf "$web_dir/private/nodeapp" 2>/dev/null || true
 fi
+
+# Remove any static index.html from public_html so Nginx NEVER blocks Node.js
+rm -f "$app_dir/index.html" "$app_dir/index.htm" 2>/dev/null || true
+
+#----------------------------------------------------------#
+#              Step 3: Starter Boilerplate                 #
+#----------------------------------------------------------#
 
 if [ ! -f "$app_dir/package.json" ]; then
     case "$app_template" in
@@ -205,8 +212,11 @@ if [ ! -f "$app_dir/$startup_file" ] && [ -f "$app_dir/app.js" ]; then
     fi
 fi
 
+# Remove any static index.html that could have been in the starter
+rm -f "$app_dir/index.html" "$app_dir/index.htm" 2>/dev/null || true
+
 #----------------------------------------------------------#
-#              Step 3: Environment (.env)                  #
+#              Step 4: Environment (.env)                  #
 #----------------------------------------------------------#
 
 if [ ! -f "$app_dir/.env" ]; then
@@ -219,7 +229,7 @@ EOF
 fi
 
 #----------------------------------------------------------#
-#              Step 4: Ecosystem File (PM2)                #
+#              Step 5: Ecosystem File (PM2)                #
 #----------------------------------------------------------#
 
 exec_mode="fork"
@@ -264,67 +274,8 @@ module.exports = {
 };
 EOF
 
-# Also create ecosystem.config.js for backwards compatibility
+# Also provide ecosystem.config.js for backward compatibility
 cp "$app_dir/ecosystem.config.cjs" "$app_dir/ecosystem.config.js"
-
-#----------------------------------------------------------#
-#          Step 5: Setup Gateway & Redirection in public   #
-#----------------------------------------------------------#
-
-# Remove default HestiaCP placeholder index.html so Nginx doesn't serve it
-if [ -f "$doc_root/index.html" ]; then
-    if grep -qi "hestia" "$doc_root/index.html" 2>/dev/null || grep -qi "success" "$doc_root/index.html" 2>/dev/null; then
-        rm -f "$doc_root/index.html"
-    fi
-fi
-
-# Create gateway .htaccess for Apache / Nginx proxying
-cat <<EOF > "$doc_root/.htaccess"
-# HestiaCP Node.js Gateway Rewrite
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ http://127.0.0.1:$port/\$1 [P,L]
-</IfModule>
-EOF
-
-# Create gateway index.php fallback
-cat <<EOF > "$doc_root/index.php"
-<?php
-// HestiaCP Node.js Gateway Fallback for $domain
-if (!headers_sent()) {
-    header("Location: /", true, 302);
-    exit;
-}
-?>
-<!DOCTYPE html>
-<html>
-<head><meta http-equiv="refresh" content="0;url=/"><title>$app_name</title></head>
-<body><p>Redirigiendo a aplicación Node.js en puerto $port...</p></body>
-</html>
-EOF
-
-# Documentation note in public_html
-cat <<EOF > "$doc_root/README.txt"
-======================================================================
-HestiaCP Node.js Application Gateway (by pochii-dev)
-======================================================================
-Domain:      $domain
-Backend App: $web_dir/private/nodeapp
-App Name:    $app_name
-Port:        $port
-Package Mgr: $pkg_mgr
-======================================================================
-Static files placed in this directory (public_html) are served
-directly with caching by Nginx. Dynamic requests are proxied to Node.js.
-======================================================================
-EOF
-
-# Copy starter public assets to public_html if present
-if [ -d "$app_dir/public" ]; then
-    cp -r "$app_dir/public/"* "$doc_root/" 2>/dev/null || true
-fi
 
 #----------------------------------------------------------#
 #          Step 6: Package Manager & Dependencies          #
@@ -364,9 +315,9 @@ if [ -f "$app_dir/package.json" ]; then
     esac
 fi
 
-# Set proper ownership for all directories
-chown -R "$user:$user" "$web_dir/private" "$doc_root" "$conf_dir"
-chmod -R 755 "$web_dir/private" "$doc_root"
+# Set proper ownership for domain files
+chown -R "$user:$user" "$app_dir" "$conf_dir"
+chmod -R 755 "$app_dir"
 
 #----------------------------------------------------------#
 #          Step 7: PM2 Service & Single Instance Start     #
@@ -382,7 +333,8 @@ if command -v pm2 >/dev/null 2>&1; then
         echo "Starting PM2 application '$app_name' (single process in $exec_mode mode)..."
         # Always delete any existing process with this app name first to prevent duplicate instances
         su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 delete '$app_name' 2>/dev/null || true"
-        # Start fresh single instance from private/nodeapp
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 delete 'node-$domain' 2>/dev/null || true"
+        # Start fresh single instance from public_html
         su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$app_dir' && pm2 start ecosystem.config.cjs"
         # Persist PM2 list
         su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 save"

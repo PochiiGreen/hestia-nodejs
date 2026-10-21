@@ -1,8 +1,7 @@
 #=========================================================================#
 # Hestia Control Panel - Node.js HTTP Reverse Proxy Template              #
 # Author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)       #
-# Application directory: %home%/%user%/web/%domain%/private/nodeapp       #
-# Static assets:         %docroot% (%home%/%user%/web/%domain%/public_html)#
+# Application directory: %docroot% (%home%/%user%/web/%domain%/public_html)#
 # Dynamic reverse proxy to Node.js / PM2 on $node_port with WebSockets    #
 #=========================================================================#
 
@@ -10,7 +9,6 @@ server {
     listen      %ip%:%web_port%;
     server_name %domain_idn% %alias_idn%;
     root        %docroot%;
-    index       index.html index.htm;
     access_log  /var/log/%web_system%/domains/%domain%.log combined;
     access_log  /var/log/%web_system%/domains/%domain%.bytes bytes;
     error_log   /var/log/%web_system%/domains/%domain%.error.log error;
@@ -25,8 +23,14 @@ server {
         return 404;
     }
 
-    # Static assets direct caching - served by Nginx if file exists in %docroot%
-    location ~* ^.+\.(jpg|jpeg|gif|png|ico|svg|css|zip|tgz|gz|rar|bz2|doc|xls|exe|pdf|ppt|txt|tar|mid|midi|wav|bmp|rtf|js|flv|swf|woff|woff2|ttf|eot|webp)$ {
+    # Protect sensitive application files from being downloaded via HTTP
+    location ~ ^/(\.env|package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|ecosystem\.config\.(js|cjs)|node_modules) {
+        deny all;
+        return 404;
+    }
+
+    # Static assets cache - served directly by Nginx if file exists on disk
+    location ~* ^.+\.(jpg|jpeg|gif|png|ico|svg|css|zip|tgz|gz|rar|bz2|doc|xls|exe|pdf|ppt|txt|tar|mid|midi|wav|bmp|rtf|flv|swf|woff|woff2|ttf|eot|webp)$ {
         root %docroot%;
         access_log off;
         expires 30d;
@@ -34,7 +38,7 @@ server {
         try_files $uri @nodejs_app;
     }
 
-    # Main application routing: reverse proxy directly to Node.js backend
+    # Main application routing: pass ALL web requests to Node.js backend
     location / {
         proxy_pass         http://127.0.0.1:$node_port;
         proxy_http_version 1.1;

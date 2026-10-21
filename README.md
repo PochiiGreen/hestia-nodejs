@@ -36,9 +36,10 @@ curl -fsSL https://raw.githubusercontent.com/PochiiGreen/hestia-nodejs/main/unin
 
 ## 🌟 Características Destacadas
 
-* 🛡️ **Arquitectura Aislada y Segura (`private/nodeapp`)**:
-  * El código fuente de Node.js, `node_modules`, archivos `.env` y el `ecosystem.config.cjs` se instalan en `~/web/<dominio>/private/nodeapp`.
-  * La carpeta `public_html` funciona como gateway y almacén de archivos estáticos públicos, evitando exponer archivos confidenciales por la web.
+* 📁 **Gestión Directa en `public_html/`**:
+  * Tu proyecto Node.js (`package.json`, `app.js`, `.env`, `node_modules`, `ecosystem.config.cjs`) se encuentra directamente en `~/web/<dominio>/public_html/`.
+  * Puedes subir tu código fácilmente mediante **SFTP**, **FTP**, el **Administrador de Archivos de HestiaCP** o **Git**.
+  * Los archivos confidenciales (`.env`, `package.json`, `node_modules`, `ecosystem.config.cjs`) están **estrictamente bloqueados por Nginx** (error 404) para máxima seguridad.
 * ⚡ **Ejecución Limpia de PM2 (Sin Instancias Duplicadas)**:
   * Modo **`fork` con 1 sola instancia por defecto**, garantizando un uso óptimo de recursos (sin arranques dobles ni workers zombies).
   * Limpieza y sustitución automática del proceso PM2 previo antes de arrancar.
@@ -50,9 +51,11 @@ curl -fsSL https://raw.githubusercontent.com/PochiiGreen/hestia-nodejs/main/unin
 * 🔌 **Soporte para Cualquier Puerto (ej: 3041, 4000, 5000, etc.)**: 
   * Asigna **cualquier puerto local** a cada dominio o subdominio.
   * Nginx resuelve el puerto de forma dinámica mediante `nodeport.conf` sin alterar plantillas del sistema.
-* 🌐 **Plantilla Única Nginx Reverse Proxy**:
-  * `nodejs.tpl` y `nodejs.stpl` (SSL) con proxy directo en `location /` hacia el backend Node.js y WebSockets nativos (`Upgrade` y `Connection`).
-  * Despacho ultra-rápido de archivos estáticos directamente desde Nginx con caché de 30 días.
+* 🌐 **Plantilla Única Nginx Reverse Proxy (Sin colisiones de `index.html`)**:
+  * `location /` envía **directamente** todo el tráfico web a tu aplicación Node.js en su puerto local.
+  * No hay archivos `index.html` estáticos interfiriendo con las respuestas de tu servidor.
+  * Soporte nativo para WebSockets (`Upgrade` y `Connection`).
+  * Despacho ultra-rápido de archivos estáticos (imágenes, fuentes, css) directamente desde Nginx con caché de 30 días.
 * 🔄 **Persistencia y Aislamiento Multi-usuario (PM2 + Systemd)**:
   * Servicio `pm2-<usuario>.service` en `systemd` que auto-inicia los procesos tras cualquier reinicio del servidor.
 
@@ -78,7 +81,7 @@ El instalador detecta automáticamente el sistema (Debian 13.x, Ubuntu, arquitec
 4. Selecciona **NodeJS** (con el logotipo oficial de Node.js).
 5. Configura los parámetros:
    * **App Name**: Nombre del proceso en PM2 (ej: `servicios`).
-   * **Port**: Cualquier puerto que desees asignar (ej: `3041`, `4000`, `8080`).
+   * **Port**: Cualquier puerto que desees asignar (ej: `3000`, `3041`, `8080`).
    * **Entry Script**: Archivo principal (ej: `app.js` o `server.js`).
    * **Package Manager**: Selecciona `pnpm` (recomendado), `npm` o `yarn`.
    * **Starter Template**: Selecciona `Express.js`, `Fastify`, `Minimal` o `Blank`.
@@ -131,13 +134,13 @@ v-delete-web-domain-nodejs admin midominio.com
 ```text
 hestia-nodejs/
 ├── bin/                             # Comandos nativos CLI de HestiaCP (/usr/local/hestia/bin)
-│   ├── v-add-web-domain-nodejs      # Creación de app en private/nodeapp, gateway en public_html y PM2
+│   ├── v-add-web-domain-nodejs      # Creación de app en public_html, ecosystem y PM2
 │   ├── v-restart-web-domain-nodejs  # Reinicio de proceso PM2
 │   ├── v-stop-web-domain-nodejs     # Parada de proceso PM2
 │   ├── v-start-web-domain-nodejs    # Inicio de proceso PM2
 │   ├── v-delete-web-domain-nodejs   # Eliminación y limpieza de proceso PM2
 │   └── v-list-web-domain-nodejs     # Listado y telemetría de apps activas
-├── starters/                        # Plantillas de inicio limpias
+├── starters/                        # Plantillas de inicio limpias (sin index.html conflictivos)
 │   ├── express/                     # Express.js + Logger + Healthcheck
 │   ├── fastify/                     # Fastify High Performance
 │   └── minimal/                     # Servidor nativo Node.js sin dependencias externas
