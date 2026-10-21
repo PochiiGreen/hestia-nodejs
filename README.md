@@ -20,7 +20,7 @@
 
 Módulo de integración nativa de **Node.js**, **PNPM** y **PM2** para **Hestia Control Panel (HestiaCP)** desarrollado por **[pochii-dev / PochiiGreen](https://github.com/PochiiGreen)**. Diseñado específicamente para **HestiaCP v1.10.5** y versiones superiores en Debian/Ubuntu.
 
-Permite desplegar, configurar, supervisar y escalar aplicaciones Node.js en **cualquier puerto local (ej: 3041, 3000, 8080, etc.)** directamente desde el **Panel Web (Quick Install App)** con icono oficial o mediante comandos de consola **CLI** (`v-*`), con plantillas Nginx de alto rendimiento, soporte WebSocket y persistencia de arranque multi-usuario con `systemd`.
+Permite desplegar, configurar, supervisar y escalar aplicaciones Node.js en **cualquier puerto local (ej: 3041, 3000, 8080, etc.)** directamente desde el **Panel Web (Quick Install App)** con icono oficial o mediante comandos de consola **CLI** (`v-*`), con plantilla �nica Nginx de alto rendimiento, soporte WebSocket y persistencia de arranque multi-usuario con `systemd`.
 
 ---
 
@@ -53,7 +53,7 @@ curl -fsSL https://raw.githubusercontent.com/PochiiGreen/hestia-nodejs/main/unin
 * 🎨 **Quick Install App en el Panel Web de HestiaCP**:
   * Catálogo de aplicaciones con icono oficial de Node.js (300×300 px).
   * Formulario completo: Nombre de la app PM2, puerto local (ej: 3041), archivo de inicio (`app.js`, `server.js`, `index.js`), gestor de paquetes (`pnpm`/`npm`/`yarn`), entorno (`production`/`development`), clúster (1, 2, 4 o `max`) e inicio automático.
-* 🌐 **Plantillas Nginx Reverse Proxy Optimizadas**:
+* 🌐 **Plantilla �nica Nginx Reverse Proxy**:
   * `nodejs.tpl` y `nodejs.stpl` (SSL) con WebSockets nativos (`Upgrade` y `Connection $connection_upgrade`).
   * Despacho ultra-rápido de archivos estáticos (.css, .js, imágenes, webp, fuentes) directamente desde Nginx con caché de 30 días.
 * 🔄 **Persistencia y Aislamiento Multi-usuario (PM2 + Systemd)**:
