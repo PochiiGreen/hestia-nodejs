@@ -2,7 +2,7 @@
 # info: start nodejs pm2 app for a web domain
 # options: USER DOMAIN [APP_NAME]
 #
-# author: pochii-dev (https://github.com/pochii-dev)
+# author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)
 # example: v-start-web-domain-nodejs admin example.com
 
 user="$1"
@@ -15,17 +15,24 @@ if [ -z "$user" ] || [ -z "$domain" ]; then
     exit 1
 fi
 
+app_dir="/home/$user/web/$domain/private/nodeapp"
 doc_root="/home/$user/web/$domain/public_html"
 
 if [ -z "$app_name" ]; then
-    if [ -f "$doc_root/ecosystem.config.js" ]; then
-        su - "$user" -s /bin/bash -c "cd '$doc_root' && pm2 start ecosystem.config.js && pm2 save"
+    if [ -f "$app_dir/ecosystem.config.cjs" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$app_dir' && pm2 start ecosystem.config.cjs && pm2 save"
+    elif [ -f "$app_dir/ecosystem.config.js" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$app_dir' && pm2 start ecosystem.config.js && pm2 save"
+    elif [ -f "$doc_root/ecosystem.config.cjs" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$doc_root' && pm2 start ecosystem.config.cjs && pm2 save"
+    elif [ -f "$doc_root/ecosystem.config.js" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$doc_root' && pm2 start ecosystem.config.js && pm2 save"
     else
         app_name="node-$domain"
-        su - "$user" -s /bin/bash -c "pm2 start '$app_name' && pm2 save"
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 start '$app_name' && pm2 save"
     fi
 else
-    su - "$user" -s /bin/bash -c "pm2 start '$app_name' && pm2 save"
+    su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 start '$app_name' && pm2 save"
 fi
 
 exit $?

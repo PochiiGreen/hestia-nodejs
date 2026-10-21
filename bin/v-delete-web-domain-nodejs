@@ -2,7 +2,7 @@
 # info: delete nodejs pm2 app and restore web domain in hestiacp
 # options: USER DOMAIN [APP_NAME]
 #
-# author: pochii-dev (https://github.com/pochii-dev)
+# author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)
 # example: v-delete-web-domain-nodejs admin example.com
 
 user="$1"
@@ -15,18 +15,25 @@ if [ -z "$user" ] || [ -z "$domain" ]; then
     exit 1
 fi
 
+app_dir="/home/$user/web/$domain/private/nodeapp"
 doc_root="/home/$user/web/$domain/public_html"
 conf_dir="/home/$user/conf/web/$domain"
 
 if [ -z "$app_name" ]; then
-    if [ -f "$doc_root/ecosystem.config.js" ]; then
-        su - "$user" -s /bin/bash -c "cd '$doc_root' && pm2 delete ecosystem.config.js 2>/dev/null || true; pm2 save"
+    if [ -f "$app_dir/ecosystem.config.cjs" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$app_dir' && pm2 delete ecosystem.config.cjs 2>/dev/null || true; pm2 save"
+    elif [ -f "$app_dir/ecosystem.config.js" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$app_dir' && pm2 delete ecosystem.config.js 2>/dev/null || true; pm2 save"
+    elif [ -f "$doc_root/ecosystem.config.cjs" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$doc_root' && pm2 delete ecosystem.config.cjs 2>/dev/null || true; pm2 save"
+    elif [ -f "$doc_root/ecosystem.config.js" ]; then
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$doc_root' && pm2 delete ecosystem.config.js 2>/dev/null || true; pm2 save"
     else
         app_name="node-$domain"
-        su - "$user" -s /bin/bash -c "pm2 delete '$app_name' 2>/dev/null || true; pm2 save"
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 delete '$app_name' 2>/dev/null || true; pm2 save"
     fi
 else
-    su - "$user" -s /bin/bash -c "pm2 delete '$app_name' 2>/dev/null || true; pm2 save"
+    su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 delete '$app_name' 2>/dev/null || true; pm2 save"
 fi
 
 # Remove port file

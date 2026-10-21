@@ -56,6 +56,7 @@ if ! id "$user" >/dev/null 2>&1; then
 fi
 
 web_dir="/home/$user/web/$domain"
+app_dir="$web_dir/private/nodeapp"
 doc_root="$web_dir/public_html"
 conf_dir="/home/$user/conf/web/$domain"
 logs_dir="$web_dir/logs"
@@ -66,7 +67,8 @@ if [ ! -d "$web_dir" ]; then
     exit 3
 fi
 
-mkdir -p "$logs_dir" "$conf_dir" "$doc_root"
+# Ensure all target directories exist
+mkdir -p "$logs_dir" "$conf_dir" "$doc_root" "$web_dir/private" "$app_dir"
 
 #----------------------------------------------------------#
 #              Step 1: Configure Nginx Port                #
@@ -85,82 +87,84 @@ if [ -x "/usr/local/hestia/bin/v-change-web-domain-tpl" ]; then
 fi
 
 #----------------------------------------------------------#
-#              Step 2: Starter Boilerplate                 #
+#          Step 2: Starter Boilerplate in private/nodeapp  #
 #----------------------------------------------------------#
 
-if [ ! -f "$doc_root/package.json" ]; then
+# Migrate any existing app from public_html if user previously placed it there
+if [ -f "$doc_root/package.json" ] && [ ! -f "$app_dir/package.json" ]; then
+    echo "Migrating existing Node.js project from public_html to private/nodeapp..."
+    cp -r "$doc_root"/* "$app_dir/" 2>/dev/null || true
+    [ -f "$doc_root/.env" ] && cp "$doc_root/.env" "$app_dir/" 2>/dev/null || true
+    rm -rf "$doc_root/node_modules" 2>/dev/null || true
+fi
+
+if [ ! -f "$app_dir/package.json" ]; then
     case "$app_template" in
         fastify)
             if [ -d "$starters_dir/fastify" ]; then
-                cp -r "$starters_dir/fastify/"* "$doc_root/"
+                cp -r "$starters_dir/fastify/"* "$app_dir/"
             else
-                cat <<'EOF' > "$doc_root/package.json"
+                cat <<'EOF' > "$app_dir/package.json"
 {
   "name": "fastify-app",
   "version": "1.0.0",
-  "author": "pochii-dev",
   "main": "app.js",
   "scripts": { "start": "node app.js" },
   "dependencies": { "dotenv": "^16.4.5", "fastify": "^4.26.2" }
 }
 EOF
-                cat <<'EOF' > "$doc_root/app.js"
+                cat <<EOF > "$app_dir/app.js"
 require('dotenv').config();
-const Fastify = require('fastify');
-const fastify = Fastify({ logger: false });
-const PORT = parseInt(process.env.PORT, 10) || 3000;
-
+const fastify = require('fastify')({ logger: true });
+const PORT = parseInt(process.env.PORT || '$port', 10);
 fastify.get('/health', async () => ({ status: 'healthy', uptime: process.uptime() }));
-fastify.get('/api/status', async () => ({ app: process.env.APP_NAME, port: PORT, status: 'online' }));
-fastify.get('/', async (req, reply) => {
-    reply.type('text/html').send('<h1>⚡ Fastify running on HestiaCP</h1><p>Port: ' + PORT + '</p>');
-});
-
-fastify.listen({ port: PORT, host: '127.0.0.1' }, (err) => {
-    if (err) process.exit(1);
-    console.log(`Server listening on port ${PORT}`);
-});
+fastify.get('/api/status', async () => ({ app: '$app_name', port: PORT, status: 'online' }));
+fastify.get('/', async () => ({ message: 'Fastify running on HestiaCP', port: PORT }));
+fastify.listen({ port: PORT, host: '127.0.0.1' });
 EOF
             fi
             ;;
 
         minimal)
             if [ -d "$starters_dir/minimal" ]; then
-                cp -r "$starters_dir/minimal/"* "$doc_root/"
+                cp -r "$starters_dir/minimal/"* "$app_dir/"
             else
-                cat <<'EOF' > "$doc_root/package.json"
+                cat <<'EOF' > "$app_dir/package.json"
 {
-  "name": "minimal-node-app",
+  "name": "minimal-app",
   "version": "1.0.0",
-  "author": "pochii-dev",
   "main": "app.js",
   "scripts": { "start": "node app.js" }
 }
 EOF
-                cat <<'EOF' > "$doc_root/app.js"
+                cat <<EOF > "$app_dir/app.js"
 const http = require('http');
-const PORT = parseInt(process.env.PORT, 10) || 3000;
+const PORT = parseInt(process.env.PORT || '$port', 10);
 const server = http.createServer((req, res) => {
-    if (req.url === '/health') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ status: 'ok', uptime: process.uptime() }));
-    }
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end('<h1>🟢 Native Node.js running on HestiaCP</h1><p>Port: ' + PORT + '</p>');
+  res.writeHead(200, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ app: '$app_name', port: PORT, status: 'online' }));
 });
-server.listen(PORT, '127.0.0.1', () => console.log(`Listening on ${PORT}`));
+server.listen(PORT, '127.0.0.1');
 EOF
             fi
             ;;
 
         blank)
-            if [ ! -f "$doc_root/$startup_file" ]; then
-                cat <<EOF > "$doc_root/$startup_file"
+            if [ ! -f "$app_dir/$startup_file" ]; then
+                cat <<'EOF' > "$app_dir/package.json"
+{
+  "name": "custom-node-app",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": { "start": "node app.js" }
+}
+EOF
+                cat <<EOF > "$app_dir/$startup_file"
 const http = require('http');
-const PORT = process.env.PORT || $port;
+const PORT = parseInt(process.env.PORT || '$port', 10);
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Node.js app on HestiaCP running on port ' + PORT);
+    res.end('Node.js app running on port ' + PORT);
 }).listen(PORT, '127.0.0.1');
 EOF
             fi
@@ -168,30 +172,26 @@ EOF
 
         express|*)
             if [ -d "$starters_dir/express" ]; then
-                cp -r "$starters_dir/express/"* "$doc_root/"
+                cp -r "$starters_dir/express/"* "$app_dir/"
             else
-                mkdir -p "$doc_root/public"
-                cat <<'EOF' > "$doc_root/package.json"
+                cat <<'EOF' > "$app_dir/package.json"
 {
   "name": "express-app",
   "version": "1.0.0",
-  "author": "pochii-dev",
   "main": "app.js",
   "scripts": { "start": "node app.js" },
   "dependencies": { "dotenv": "^16.4.5", "express": "^4.19.2" }
 }
 EOF
-                cat <<'EOF' > "$doc_root/app.js"
+                cat <<EOF > "$app_dir/app.js"
 require('dotenv').config();
 const express = require('express');
 const app = express();
-const PORT = process.env.PORT || 3000;
-
+const PORT = parseInt(process.env.PORT || '$port', 10);
 app.get('/health', (req, res) => res.json({ status: 'healthy', uptime: process.uptime() }));
-app.get('/api/status', (req, res) => res.json({ app: process.env.APP_NAME, port: PORT, status: 'online' }));
-app.get('/', (req, res) => res.send('<h1>🚀 Express app on HestiaCP</h1><p>Port: ' + PORT + '</p>'));
-
-app.listen(PORT, '127.0.0.1', () => console.log(`Running on port ${PORT}`));
+app.get('/api/status', (req, res) => res.json({ app: '$app_name', port: PORT, status: 'online' }));
+app.get('/', (req, res) => res.send('<h1>🚀 Node.js App on HestiaCP</h1><p>Port: ' + PORT + '</p>'));
+app.listen(PORT, '127.0.0.1');
 EOF
             fi
             ;;
@@ -199,9 +199,9 @@ EOF
 fi
 
 # Ensure startup file exists if different name specified
-if [ ! -f "$doc_root/$startup_file" ] && [ -f "$doc_root/app.js" ]; then
+if [ ! -f "$app_dir/$startup_file" ] && [ -f "$app_dir/app.js" ]; then
     if [ "$startup_file" != "app.js" ]; then
-        mv "$doc_root/app.js" "$doc_root/$startup_file"
+        mv "$app_dir/app.js" "$app_dir/$startup_file"
     fi
 fi
 
@@ -209,8 +209,8 @@ fi
 #              Step 3: Environment (.env)                  #
 #----------------------------------------------------------#
 
-if [ ! -f "$doc_root/.env" ]; then
-    cat <<EOF > "$doc_root/.env"
+if [ ! -f "$app_dir/.env" ]; then
+    cat <<EOF > "$app_dir/.env"
 PORT=$port
 NODE_ENV=$node_env
 DOMAIN=$domain
@@ -223,18 +223,28 @@ fi
 #----------------------------------------------------------#
 
 exec_mode="fork"
-if [ "$instances" = "max" ] || [ "$instances" -gt 1 ] 2>/dev/null; then
+instances_js=1
+
+if [ "$instances" = "max" ]; then
     exec_mode="cluster"
+    instances_js="'max'"
+elif [ "$instances" -gt 1 ] 2>/dev/null; then
+    exec_mode="cluster"
+    instances_js="$instances"
+else
+    exec_mode="fork"
+    instances_js=1
+    instances=1
 fi
 
-cat <<EOF > "$doc_root/ecosystem.config.js"
+cat <<EOF > "$app_dir/ecosystem.config.cjs"
 module.exports = {
   apps: [
     {
       name: '$app_name',
       script: '$startup_file',
-      cwd: '$doc_root',
-      instances: '$instances',
+      cwd: '$app_dir',
+      instances: $instances_js,
       exec_mode: '$exec_mode',
       autorestart: true,
       watch: false,
@@ -254,49 +264,112 @@ module.exports = {
 };
 EOF
 
-# Provide ecosystem.config.cjs for projects with "type": "module" in package.json
-cp -f "$doc_root/ecosystem.config.js" "$doc_root/ecosystem.config.cjs"
+# Also create ecosystem.config.js for backwards compatibility
+cp "$app_dir/ecosystem.config.cjs" "$app_dir/ecosystem.config.js"
 
 #----------------------------------------------------------#
-#              Step 5: Install Dependencies (PNPM/NPM)     #
+#          Step 5: Setup Gateway & Redirection in public   #
 #----------------------------------------------------------#
 
-chown -R "$user:$user" "$doc_root" "$logs_dir"
-chmod 755 "$doc_root"
+# Remove default HestiaCP placeholder index.html so Nginx doesn't serve it
+if [ -f "$doc_root/index.html" ]; then
+    if grep -qi "hestia" "$doc_root/index.html" 2>/dev/null || grep -qi "success" "$doc_root/index.html" 2>/dev/null; then
+        rm -f "$doc_root/index.html"
+    fi
+fi
 
-if [ -f "$doc_root/package.json" ] && [ "$app_template" != "minimal" ] && [ "$app_template" != "blank" ]; then
+# Create gateway .htaccess for Apache / Nginx proxying
+cat <<EOF > "$doc_root/.htaccess"
+# HestiaCP Node.js Gateway Rewrite
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ http://127.0.0.1:$port/\$1 [P,L]
+</IfModule>
+EOF
+
+# Create gateway index.php fallback
+cat <<EOF > "$doc_root/index.php"
+<?php
+// HestiaCP Node.js Gateway Fallback for $domain
+if (!headers_sent()) {
+    header("Location: /", true, 302);
+    exit;
+}
+?>
+<!DOCTYPE html>
+<html>
+<head><meta http-equiv="refresh" content="0;url=/"><title>$app_name</title></head>
+<body><p>Redirigiendo a aplicación Node.js en puerto $port...</p></body>
+</html>
+EOF
+
+# Documentation note in public_html
+cat <<EOF > "$doc_root/README.txt"
+======================================================================
+HestiaCP Node.js Application Gateway (by pochii-dev)
+======================================================================
+Domain:      $domain
+Backend App: $web_dir/private/nodeapp
+App Name:    $app_name
+Port:        $port
+Package Mgr: $pkg_mgr
+======================================================================
+Static files placed in this directory (public_html) are served
+directly with caching by Nginx. Dynamic requests are proxied to Node.js.
+======================================================================
+EOF
+
+# Copy starter public assets to public_html if present
+if [ -d "$app_dir/public" ]; then
+    cp -r "$app_dir/public/"* "$doc_root/" 2>/dev/null || true
+fi
+
+#----------------------------------------------------------#
+#          Step 6: Package Manager & Dependencies          #
+#----------------------------------------------------------#
+
+cat <<EOF > "$app_dir/.npmrc"
+shamefully-hoist=true
+strict-peer-dependencies=false
+EOF
+
+if [ -f "$app_dir/package.json" ]; then
     case "$pkg_mgr" in
         pnpm)
             if ! command -v pnpm >/dev/null 2>&1; then
                 npm install -g pnpm --loglevel=error >/dev/null 2>&1 || true
             fi
             if command -v pnpm >/dev/null 2>&1; then
-                echo "Installing dependencies using pnpm for $app_name..."
-                su - "$user" -s /bin/bash -c "cd '$doc_root' && pnpm install --prod" >/dev/null 2>&1 || true
+                echo "Installing dependencies using pnpm for $app_name in $app_dir..."
+                su - "$user" -s /bin/bash -c "cd '$app_dir' && pnpm install --prod" >/dev/null 2>&1 || true
             else
                 echo "Falling back to npm install for $app_name..."
-                su - "$user" -s /bin/bash -c "cd '$doc_root' && npm install --no-audit --no-fund" >/dev/null 2>&1 || true
+                su - "$user" -s /bin/bash -c "cd '$app_dir' && npm install --no-audit --no-fund" >/dev/null 2>&1 || true
             fi
             ;;
         yarn)
             if ! command -v yarn >/dev/null 2>&1; then
                 npm install -g yarn --loglevel=error >/dev/null 2>&1 || true
             fi
-            su - "$user" -s /bin/bash -c "cd '$doc_root' && yarn install --production" >/dev/null 2>&1 || true
+            su - "$user" -s /bin/bash -c "cd '$app_dir' && yarn install --production" >/dev/null 2>&1 || true
             ;;
         npm|*)
             if command -v npm >/dev/null 2>&1; then
-                echo "Installing dependencies using npm for $app_name..."
-                su - "$user" -s /bin/bash -c "cd '$doc_root' && npm install --no-audit --no-fund" >/dev/null 2>&1 || true
+                echo "Installing dependencies using npm for $app_name in $app_dir..."
+                su - "$user" -s /bin/bash -c "cd '$app_dir' && npm install --no-audit --no-fund" >/dev/null 2>&1 || true
             fi
             ;;
     esac
 fi
 
-chown -R "$user:$user" "$doc_root"
+# Set proper ownership for all directories
+chown -R "$user:$user" "$web_dir/private" "$doc_root" "$conf_dir"
+chmod -R 755 "$web_dir/private" "$doc_root"
 
 #----------------------------------------------------------#
-#              Step 6: PM2 Service & Immediate Start       #
+#          Step 7: PM2 Service & Single Instance Start     #
 #----------------------------------------------------------#
 
 if command -v pm2 >/dev/null 2>&1; then
@@ -306,15 +379,18 @@ if command -v pm2 >/dev/null 2>&1; then
     systemctl start "pm2-$user" >/dev/null 2>&1 || true
 
     if [ "$auto_start" = "yes" ]; then
-        echo "Starting PM2 application '$app_name' immediately..."
-        su - "$user" -s /bin/bash -c "pm2 delete '$app_name' 2>/dev/null || true"
-        su - "$user" -s /bin/bash -c "cd '$doc_root' && pm2 start ecosystem.config.js"
-        su - "$user" -s /bin/bash -c "pm2 save"
+        echo "Starting PM2 application '$app_name' (single process in $exec_mode mode)..."
+        # Always delete any existing process with this app name first to prevent duplicate instances
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 delete '$app_name' 2>/dev/null || true"
+        # Start fresh single instance from private/nodeapp
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && cd '$app_dir' && pm2 start ecosystem.config.cjs"
+        # Persist PM2 list
+        su - "$user" -s /bin/bash -c "export PM2_HOME=/home/$user/.pm2 && pm2 save"
     fi
 fi
 
 #----------------------------------------------------------#
-#              Step 7: Rebuild & Reload Nginx              #
+#              Step 8: Rebuild & Reload Nginx              #
 #----------------------------------------------------------#
 
 if [ -x "/usr/local/hestia/bin/v-rebuild-web-domain" ]; then
@@ -325,5 +401,5 @@ if systemctl is-active --quiet nginx; then
     nginx -t >/dev/null 2>&1 && systemctl reload nginx
 fi
 
-echo "Success: Node.js application '$app_name' configured on port $port and running with PM2."
+echo "Success: Node.js application '$app_name' installed in $app_dir, mapped to port $port with PM2."
 exit 0

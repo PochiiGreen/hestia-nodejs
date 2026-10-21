@@ -77,13 +77,13 @@ class NodeJSSetup extends BaseSetup
             ],
             'pm2_instances' => [
                 'type' => 'select',
-                'label' => 'PM2 Cluster Instances',
+                'label' => 'PM2 Mode & Instances',
                 'value' => '1',
                 'options' => [
-                    '1'   => '1 Instance (Fork mode)',
+                    '1'   => '1 Instance (Fork mode - Recomendado)',
                     '2'   => '2 Instances (Cluster mode)',
                     '4'   => '4 Instances (Cluster mode)',
-                    'max' => 'max (Cluster across all CPU cores)',
+                    'max' => 'Max Cores (Cluster across CPU)',
                 ],
             ],
             'auto_start' => [
