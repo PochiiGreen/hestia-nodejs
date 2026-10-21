@@ -1,174 +1,199 @@
 <?php
+
+declare(strict_types=1);
+
 namespace Hestia\WebApp\Installers\NodeJS;
 
+use Hestia\WebApp\BaseSetup;
+use Hestia\WebApp\InstallationTarget\InstallationTarget;
+use Symfony\Component\Process\Process;
+use RuntimeException;
+
+// Backward-compatibility alias if BaseSetup is located in older namespace
+if (!class_exists('Hestia\WebApp\BaseSetup', false) && class_exists('Hestia\WebApp\Installers\BaseSetup', false)) {
+    class_alias('Hestia\WebApp\Installers\BaseSetup', 'Hestia\WebApp\BaseSetup');
+}
+
 /**
- * HestiaCP Node.js & PM2 Quick Install App
+ * HestiaCP Node.js, PNPM & PM2 Quick Install App
  * Author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)
- * 100% compatible with Hestia Control Panel v1.4.0 through v1.10.5+
+ * Fully compatible with Hestia Control Panel v1.10.x & v1.10.5+
  */
-
-// Dynamically load BaseSetup regardless of where HestiaCP stores it across versions
-if (!class_exists('Hestia\WebApp\BaseSetup', false) && !class_exists('Hestia\WebApp\Installers\BaseSetup', false)) {
-    if (file_exists('/usr/local/hestia/web/src/app/WebApp/BaseSetup.php')) {
-        require_once '/usr/local/hestia/web/src/app/WebApp/BaseSetup.php';
-    } elseif (file_exists('/usr/local/hestia/web/src/app/WebApp/Installers/BaseSetup.php')) {
-        require_once '/usr/local/hestia/web/src/app/WebApp/Installers/BaseSetup.php';
-    }
-}
-
-// Alias class if defined under \Hestia\WebApp\BaseSetup
-if (class_exists('Hestia\WebApp\BaseSetup', false) && !class_exists('Hestia\WebApp\Installers\BaseSetup', false)) {
-    class_alias('Hestia\WebApp\BaseSetup', 'Hestia\WebApp\Installers\BaseSetup');
-}
-
-// Fallback dummy to strictly prevent any PHP Fatal Error 500
-if (!class_exists('Hestia\WebApp\Installers\BaseSetup', false)) {
-    abstract class DummyBaseSetup {
-        protected $appInfo = [];
-        protected $appname = '';
-        protected $config = [];
-        abstract public function install(array $options = null);
-    }
-    class_alias('Hestia\WebApp\Installers\NodeJS\DummyBaseSetup', 'Hestia\WebApp\Installers\BaseSetup');
-}
-
-use Hestia\System\Util;
-use Hestia\WebApp\Installers\BaseSetup as BaseSetup;
-
-class NodeJSSetup extends BaseSetup {
-    protected $appInfo = [
+class NodeJSSetup extends BaseSetup
+{
+    protected array $info = [
         'name' => 'NodeJS',
         'group' => 'framework',
-        'enabled' => true,
         'version' => 'latest',
-        'thumbnail' => 'nodejs.png'
+        'thumbnail' => 'nodejs.png',
     ];
 
-    protected $appname = 'nodejs';
-
-    protected $config = [
+    protected array $config = [
         'form' => [
             'app_name' => [
                 'type' => 'text',
-                'value' => 'my-node-app'
+                'label' => 'App Name / PM2 Process Name',
+                'value' => 'my-node-app',
             ],
             'app_port' => [
                 'type' => 'text',
-                'value' => '3000'
+                'label' => 'Port (e.g. 3000, 3041, 8080)',
+                'value' => '3000',
             ],
             'startup_file' => [
                 'type' => 'text',
-                'value' => 'app.js'
+                'label' => 'Entry Script',
+                'value' => 'app.js',
             ],
             'package_manager' => [
                 'type' => 'select',
-                'options' => ['pnpm', 'npm', 'yarn'],
-                'value' => 'pnpm'
+                'label' => 'Package Manager',
+                'value' => 'pnpm',
+                'options' => [
+                    'pnpm' => 'pnpm (Recommended - Fast & Disk-efficient)',
+                    'npm'  => 'npm (Default Node Package Manager)',
+                    'yarn' => 'yarn (Classic)',
+                ],
             ],
             'app_template' => [
                 'type' => 'select',
-                'options' => ['express', 'fastify', 'minimal', 'blank'],
-                'value' => 'express'
+                'label' => 'Starter Template',
+                'value' => 'express',
+                'options' => [
+                    'express' => 'Express.js (REST API + Health Check + Logger)',
+                    'fastify' => 'Fastify (High Performance JSON API)',
+                    'minimal' => 'Minimal (Native HTTP, Zero-dependency)',
+                    'blank'   => 'Blank (Empty project / Bring your own code)',
+                ],
             ],
             'node_env' => [
                 'type' => 'select',
-                'options' => ['production', 'development'],
-                'value' => 'production'
+                'label' => 'Environment (NODE_ENV)',
+                'value' => 'production',
+                'options' => [
+                    'production'  => 'production',
+                    'development' => 'development',
+                ],
             ],
             'pm2_instances' => [
                 'type' => 'select',
-                'options' => ['1', '2', '4', 'max'],
-                'value' => '1'
+                'label' => 'PM2 Cluster Instances',
+                'value' => '1',
+                'options' => [
+                    '1'   => '1 Instance (Fork mode)',
+                    '2'   => '2 Instances (Cluster mode)',
+                    '4'   => '4 Instances (Cluster mode)',
+                    'max' => 'max (Cluster across all CPU cores)',
+                ],
             ],
             'auto_start' => [
                 'type' => 'select',
-                'options' => ['yes', 'no'],
-                'value' => 'yes'
-            ]
+                'label' => 'Auto Start with PM2?',
+                'value' => 'yes',
+                'options' => [
+                    'yes' => 'Yes (Start via PM2 & save systemd persistence)',
+                    'no'  => 'No (Generate files and proxy template only)',
+                ],
+            ],
         ],
         'database' => false,
-        'resources' => [
-            'archive' => [
-                'src' => ''
-            ]
-        ],
+        'resources' => [],
         'server' => [
             'nginx' => [
-                'template' => 'nodejs'
-            ],
-            'apache2' => [
-                'template' => 'default'
+                'template' => 'nodejs',
             ],
             'php' => [
-                'supported' => [
-                    '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'
-                ]
-            ]
-        ]
+                'supported' => ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'],
+            ],
+        ],
     ];
 
     /**
-     * Install execution method called by HestiaCP WebApp installer
-     *
-     * @param array|null $options
-     * @return bool
-     * @throws \Exception
+     * Executes the Node.js application scaffolding and PM2 integration
      */
-    public function install(array $options = null) {
-        $domain = !empty($this->domain) ? $this->domain : (method_exists($this->appcontext, 'domain') ? $this->appcontext->domain() : '');
-        $user = method_exists($this->appcontext, 'user') ? $this->appcontext->user() : '';
+    protected function setupApplication(InstallationTarget $target, array $options): void
+    {
+        $domain = $target->domain->domainName;
 
-        // Fallback user resolution if needed
-        if (empty($user) && !empty($domain)) {
-            $userLookup = exec("grep -l \"DOMAIN='$domain'\" /usr/local/hestia/data/users/*/web.conf 2>/dev/null | cut -d'/' -f7");
+        // Resolve user
+        $user = '';
+        if (method_exists($this->appcontext, 'user')) {
+            $user = (string)$this->appcontext->user();
+        }
+        if (empty($user) && !empty($_SESSION['user'])) {
+            $user = (string)$_SESSION['user'];
+        }
+        if (empty($user) && !empty($target->domain->domainPath)) {
+            $parts = explode('/', trim($target->domain->domainPath, '/'));
+            if (isset($parts[1])) {
+                $user = $parts[1];
+            }
+        }
+        if (empty($user)) {
+            $userLookup = exec(sprintf("grep -l \"DOMAIN='%s'\" /usr/local/hestia/data/users/*/web.conf 2>/dev/null | cut -d'/' -f7", escapeshellcmd($domain)));
             if (!empty($userLookup)) {
                 $user = trim($userLookup);
             }
         }
-
-        if (empty($user) || empty($domain)) {
-            throw new \Exception("No se pudo resolver el contexto de usuario o dominio para la instalación de Node.js.");
+        if (empty($user)) {
+            $user = 'admin';
         }
 
-        // Extract and sanitize options
-        $appName = !empty($options['app_name']) ? preg_replace('/[^a-zA-Z0-9_\-]/', '', $options['app_name']) : 'node-' . str_replace('.', '-', $domain);
+        // Options sanitization
+        $appName = !empty($options['app_name']) ? preg_replace('/[^a-zA-Z0-9_\-]/', '', (string)$options['app_name']) : 'node-' . str_replace('.', '-', $domain);
+        if (empty($appName)) {
+            $appName = 'node-' . str_replace('.', '-', $domain);
+        }
+
         $appPort = !empty($options['app_port']) ? intval($options['app_port']) : 3000;
-        $startupFile = !empty($options['startup_file']) ? basename($options['startup_file']) : 'app.js';
-        $pkgMgr = (!empty($options['package_manager']) && in_array($options['package_manager'], ['pnpm', 'npm', 'yarn'])) ? $options['package_manager'] : 'pnpm';
-        $appTemplate = (!empty($options['app_template']) && in_array($options['app_template'], ['express', 'fastify', 'minimal', 'blank'])) ? $options['app_template'] : 'express';
+        if ($appPort <= 0 || $appPort > 65535) {
+            $appPort = 3000;
+        }
+
+        $startupFile = !empty($options['startup_file']) ? basename((string)$options['startup_file']) : 'app.js';
+        $pkgMgr = (!empty($options['package_manager']) && in_array($options['package_manager'], ['pnpm', 'npm', 'yarn'], true)) ? $options['package_manager'] : 'pnpm';
+        $appTemplate = (!empty($options['app_template']) && in_array($options['app_template'], ['express', 'fastify', 'minimal', 'blank'], true)) ? $options['app_template'] : 'express';
         $nodeEnv = (!empty($options['node_env']) && $options['node_env'] === 'development') ? 'development' : 'production';
-        $pm2Instances = (!empty($options['pm2_instances']) && in_array($options['pm2_instances'], ['1', '2', '4', 'max'])) ? $options['pm2_instances'] : '1';
+        $pm2Instances = (!empty($options['pm2_instances']) && in_array((string)$options['pm2_instances'], ['1', '2', '4', 'max'], true)) ? (string)$options['pm2_instances'] : '1';
         $autoStart = (!empty($options['auto_start']) && $options['auto_start'] === 'no') ? 'no' : 'yes';
 
         $cliScript = '/usr/local/hestia/bin/v-add-web-domain-nodejs';
         if (!file_exists($cliScript)) {
-            throw new \Exception("El comando de instalación $cliScript no se encuentra disponible.");
+            throw new RuntimeException("El script CLI $cliScript no se encuentra instalado en el sistema.");
         }
 
-        $cmd = sprintf(
-            '%s %s %s %d %s %s %s %s %s %s %s',
-            escapeshellcmd($cliScript),
-            escapeshellarg($user),
-            escapeshellarg($domain),
-            $appPort,
-            escapeshellarg($appName),
-            escapeshellarg($startupFile),
-            escapeshellarg($pkgMgr),
-            escapeshellarg($appTemplate),
-            escapeshellarg($nodeEnv),
-            escapeshellarg($pm2Instances),
-            escapeshellarg($autoStart)
-        );
+        $cmd = [
+            '/usr/bin/sudo',
+            $cliScript,
+            $user,
+            $domain,
+            (string)$appPort,
+            $appName,
+            $startupFile,
+            $pkgMgr,
+            $appTemplate,
+            $nodeEnv,
+            $pm2Instances,
+            $autoStart,
+        ];
 
-        $output = [];
-        $returnCode = 0;
-        exec($cmd . ' 2>&1', $output, $returnCode);
+        if (class_exists('Symfony\Component\Process\Process')) {
+            $process = new Process($cmd);
+            $process->setTimeout(300);
+            $process->run();
 
-        if ($returnCode !== 0) {
-            $errorMsg = implode("\n", $output);
-            throw new \Exception("Fallo al configurar la aplicación Node.js: " . $errorMsg);
+            if (!$process->isSuccessful()) {
+                throw new RuntimeException("Error al configurar la app Node.js: " . $process->getErrorOutput() . " " . $process->getOutput());
+            }
+        } else {
+            $escapedCmd = implode(' ', array_map('escapeshellarg', $cmd));
+            $output = [];
+            $returnCode = 0;
+            exec($escapedCmd . ' 2>&1', $output, $returnCode);
+
+            if ($returnCode !== 0) {
+                throw new RuntimeException("Error al configurar la app Node.js: " . implode("\n", $output));
+            }
         }
-
-        return true;
     }
 }
