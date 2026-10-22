@@ -220,6 +220,18 @@ if [ ! -f "$app_dir/$startup_file" ] && [ -f "$app_dir/app.js" ]; then
     fi
 fi
 
+# Clean up legacy path references and update default starter if present
+if [ -f "$app_dir/$startup_file" ]; then
+    if grep -q "private/nodeapp" "$app_dir/$startup_file" 2>/dev/null; then
+        # If it's the boilerplate app.js, upgrade to the latest beautiful v1.0 (APA) starter
+        if grep -q "HestiaCP" "$app_dir/$startup_file" 2>/dev/null && [ -f "$starters_dir/express/app.js" ]; then
+            cp "$starters_dir/express/app.js" "$app_dir/$startup_file"
+        else
+            sed -i 's|private/nodeapp|public_html|g' "$app_dir/$startup_file" 2>/dev/null || true
+        fi
+    fi
+fi
+
 # Remove any static index.html that could have been in the starter
 rm -f "$app_dir/index.html" "$app_dir/index.htm" 2>/dev/null || true
 
@@ -234,6 +246,23 @@ NODE_ENV=$node_env
 DOMAIN=$domain
 APP_NAME=$app_name
 EOF
+else
+    # Keep PORT, DOMAIN, APP_NAME in sync with configured domain parameters
+    if grep -q "^PORT=" "$app_dir/.env"; then
+        sed -i "s/^PORT=.*/PORT=$port/" "$app_dir/.env"
+    else
+        echo "PORT=$port" >> "$app_dir/.env"
+    fi
+    if grep -q "^DOMAIN=" "$app_dir/.env"; then
+        sed -i "s/^DOMAIN=.*/DOMAIN=$domain/" "$app_dir/.env"
+    else
+        echo "DOMAIN=$domain" >> "$app_dir/.env"
+    fi
+    if grep -q "^APP_NAME=" "$app_dir/.env"; then
+        sed -i "s/^APP_NAME=.*/APP_NAME=$app_name/" "$app_dir/.env"
+    else
+        echo "APP_NAME=$app_name" >> "$app_dir/.env"
+    fi
 fi
 
 #----------------------------------------------------------#

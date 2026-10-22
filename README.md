@@ -12,13 +12,23 @@
 ```
 
 [![Author: pochii-dev](https://img.shields.io/badge/Author-pochii--dev-blueviolet.svg)](https://github.com/PochiiGreen)
+[![Version: 1.0 (APA)](https://img.shields.io/badge/Version-1.0%20(APA)-emerald.svg)](https://github.com/PochiiGreen/hestia-nodejs)
+[![Mercado Pago: potschka.roberto](https://img.shields.io/badge/Mercado%20Pago-potschka.roberto-009ee3.svg)](https://mpago.la)
 [![HestiaCP](https://img.shields.io/badge/HestiaCP-v1.10.5%20Tested-red.svg)](https://hestiacp.com)
 [![Node.js](https://img.shields.io/badge/Node.js-18%20|%2020%20LTS%20|%2022-green.svg)](https://nodejs.org)
 [![Package Manager](https://img.shields.io/badge/Package%20Manager-PNPM%20|%20NPM%20|%20Yarn-orange.svg)](https://pnpm.io)
 [![PM2](https://img.shields.io/badge/PM2-Daemon%20Auto--start-blue.svg)](https://pm2.keymetrics.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Módulo de integración nativa de **Node.js**, **PNPM** y **PM2** para **Hestia Control Panel (HestiaCP)** desarrollado por **[pochii-dev / PochiiGreen](https://github.com/PochiiGreen)**. Diseñado específicamente para **HestiaCP v1.10.5** y versiones superiores en Debian / Ubuntu.
+Módulo de integración nativa de **Node.js**, **PNPM** y **PM2** para **Hestia Control Panel (HestiaCP)** desarrollado por **[pochii-dev / PochiiGreen](https://github.com/PochiiGreen)** (Versión `1.0 (APA)`). Diseñado específicamente para **HestiaCP v1.10.5** y versiones superiores en Debian / Ubuntu.
+
+---
+
+### ☕ Apoya el Desarrollo Libre / Donaciones
+Si este proyecto te ha sido de utilidad para tus despliegues Node.js en HestiaCP, puedes colaborar con una donación voluntaria:
+* 💳 **Mercado Pago (Alias Argentina):** `potschka.roberto`
+* 👤 **Autor:** pochii-dev (Roberto Potschka)
+* 🌟 **Repositorio:** [github.com/PochiiGreen/hestia-nodejs](https://github.com/PochiiGreen/hestia-nodejs)
 
 Permite desplegar, configurar, supervisar y escalar aplicaciones Node.js en **cualquier puerto local (ej: 3041, 3000, 8080, etc.)** directamente desde el **Panel Web (Quick Install App)** con icono oficial o mediante comandos de consola **CLI** (`v-*`), con una **única plantilla Nginx** de alto rendimiento, soporte WebSocket nativo y persistencia de arranque multi-usuario con `systemd`.
 

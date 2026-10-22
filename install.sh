@@ -243,6 +243,31 @@ for conf in /home/*/conf/web/*/nodeport.conf; do
     fi
 done
 
+# Upgrade existing boilerplate app.js to the new v1.0 (APA) design and fix private/nodeapp paths
+for app_file in /home/*/web/*/public_html/app.js; do
+    if [ -f "$app_file" ]; then
+        if grep -q "private/nodeapp" "$app_file" 2>/dev/null; then
+            if grep -q "HestiaCP" "$app_file" 2>/dev/null && [ -f "$SOURCE_DIR/starters/express/app.js" ]; then
+                cp "$SOURCE_DIR/starters/express/app.js" "$app_file"
+                owner=$(stat -c '%U:%G' "$(dirname "$app_file")" 2>/dev/null || echo "root:root")
+                chown "$owner" "$app_file" 2>/dev/null || true
+            else
+                sed -i 's|private/nodeapp|public_html|g' "$app_file" 2>/dev/null || true
+            fi
+        fi
+    fi
+done
+
+# Restart PM2 for users whose app.js was upgraded
+for u_dir in /home/*; do
+    [ ! -d "$u_dir" ] && continue
+    u=$(basename "$u_dir")
+    [ "$u" = "lost+found" ] && continue
+    if [ -d "$u_dir/.pm2" ]; then
+        su - "$u" -s /bin/bash -c "export PM2_HOME=/home/$u/.pm2 && pm2 restart all" >/dev/null 2>&1 || true
+    fi
+done
+
 # Rebuild domains currently using nodeport.conf to regenerate clean Nginx virtual hosts
 for u_dir in /home/*; do
     [ ! -d "$u_dir" ] && continue
