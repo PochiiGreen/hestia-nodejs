@@ -81,12 +81,17 @@ EOF
 chown "$user:$user" "$conf_dir/nodeport.conf"
 chmod 644 "$conf_dir/nodeport.conf"
 
-# Apply nodejs template in Hestia if command exists (handles both standalone nginx and nginx+apache2)
-if [ -x "/usr/local/hestia/bin/v-change-web-domain-tpl" ]; then
-    /usr/local/hestia/bin/v-change-web-domain-tpl "$user" "$domain" "nodejs" "no" >/dev/null 2>&1 || true
-fi
-if [ -x "/usr/local/hestia/bin/v-change-web-domain-proxy-tpl" ]; then
-    /usr/local/hestia/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "nodejs" "no" >/dev/null 2>&1 || true
+# Apply nodejs template in Hestia according to the web stack
+if [ -f "/usr/local/hestia/conf/hestia.conf" ] && grep -q "WEB_SYSTEM='apache2'" /usr/local/hestia/conf/hestia.conf; then
+    # In Apache2 + Nginx setups, nodejs template belongs to Nginx Proxy
+    if [ -x "/usr/local/hestia/bin/v-change-web-domain-proxy-tpl" ]; then
+        /usr/local/hestia/bin/v-change-web-domain-proxy-tpl "$user" "$domain" "nodejs" "no" >/dev/null 2>&1 || true
+    fi
+else
+    # In standalone Nginx setups (without Apache), nodejs template belongs to Web Template
+    if [ -x "/usr/local/hestia/bin/v-change-web-domain-tpl" ]; then
+        /usr/local/hestia/bin/v-change-web-domain-tpl "$user" "$domain" "nodejs" "no" >/dev/null 2>&1 || true
+    fi
 fi
 
 #----------------------------------------------------------#

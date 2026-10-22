@@ -161,22 +161,26 @@ echo -e "\r  ${C_GREEN}✔${C_RESET} [2/6] PM2 (${C_BRIGHT_GREEN}v$(pm2 -v 2>/de
 
 # 3. Install Single Nginx Template (handles all dynamic ports)
 echo -ne "  ${C_YELLOW}⟳${C_RESET} [3/6] Instalando plantilla única Nginx 'nodejs'..."
+# 3. Install Nginx Templates
+# Remove any invalid template files in apache2
+rm -f /usr/local/hestia/data/templates/web/apache2/nodejs.* 2>/dev/null || true
+
+# 3a. Install Nginx Proxy Template (for setups with Apache2 + Nginx reverse proxy)
 if [ -d "/usr/local/hestia/data/templates/web/nginx" ]; then
     cp "$SOURCE_DIR/templates/nginx/nodejs.tpl" /usr/local/hestia/data/templates/web/nginx/
     cp "$SOURCE_DIR/templates/nginx/nodejs.stpl" /usr/local/hestia/data/templates/web/nginx/
-    chmod 644 /usr/local/hestia/data/templates/web/nginx/nodejs.* 2>/dev/null || true
+    cp "$SOURCE_DIR/templates/nginx/nodejs.sh" /usr/local/hestia/data/templates/web/nginx/
+    chmod 644 /usr/local/hestia/data/templates/web/nginx/nodejs.tpl /usr/local/hestia/data/templates/web/nginx/nodejs.stpl 2>/dev/null || true
+    chmod 755 /usr/local/hestia/data/templates/web/nginx/nodejs.sh 2>/dev/null || true
 fi
 
+# 3b. Install Nginx Web Template (for standalone Nginx + PHP-FPM setups)
 if [ -d "/usr/local/hestia/data/templates/web/nginx/php-fpm" ]; then
-    cp "$SOURCE_DIR/templates/nginx/nodejs.tpl" /usr/local/hestia/data/templates/web/nginx/php-fpm/
-    cp "$SOURCE_DIR/templates/nginx/nodejs.stpl" /usr/local/hestia/data/templates/web/nginx/php-fpm/
-    chmod 644 /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.* 2>/dev/null || true
-fi
-
-if [ -d "/usr/local/hestia/data/templates/web/apache2" ]; then
-    cp "$SOURCE_DIR/templates/nginx/nodejs.tpl" /usr/local/hestia/data/templates/web/apache2/ 2>/dev/null || true
-    cp "$SOURCE_DIR/templates/nginx/nodejs.stpl" /usr/local/hestia/data/templates/web/apache2/ 2>/dev/null || true
-    chmod 644 /usr/local/hestia/data/templates/web/apache2/nodejs.* 2>/dev/null || true
+    cp "$SOURCE_DIR/templates/nginx/php-fpm/nodejs.tpl" /usr/local/hestia/data/templates/web/nginx/php-fpm/
+    cp "$SOURCE_DIR/templates/nginx/php-fpm/nodejs.stpl" /usr/local/hestia/data/templates/web/nginx/php-fpm/
+    cp "$SOURCE_DIR/templates/nginx/nodejs.sh" /usr/local/hestia/data/templates/web/nginx/php-fpm/
+    chmod 644 /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.tpl /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.stpl 2>/dev/null || true
+    chmod 755 /usr/local/hestia/data/templates/web/nginx/php-fpm/nodejs.sh 2>/dev/null || true
 fi
 echo -e "\r  ${C_GREEN}✔${C_RESET} [3/6] Plantilla única Nginx 'nodejs' instalada (soporta cualquier puerto: 3041, etc.)."
 

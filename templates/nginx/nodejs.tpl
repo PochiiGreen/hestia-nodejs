@@ -6,17 +6,13 @@
 #=========================================================================#
 
 server {
-	listen      %ip%:%web_port%;
+	listen      %ip%:%proxy_port%;
 	server_name %domain_idn% %alias_idn%;
-	root        %docroot%;
-	index       index.php index.html index.htm;
-	access_log  /var/log/nginx/domains/%domain%.log combined;
-	access_log  /var/log/nginx/domains/%domain%.bytes bytes;
-	error_log   /var/log/nginx/domains/%domain%.error.log error;
+	error_log   /var/log/%web_system%/domains/%domain%.error.log error;
 
 	include %home%/%user%/conf/web/%domain%/nginx.forcessl.conf*;
 
-	location ~ /\.(?!well-known\/) {
+	location ~ /\.(?!well-known\/|file) {
 		deny all;
 		return 404;
 	}

@@ -1,0 +1,56 @@
+#=========================================================================#
+# Default Web Domain Template - Node.js Standalone Nginx SSL Proxy        #
+# DO NOT MODIFY THIS FILE! CHANGES WILL BE LOST WHEN REBUILDING DOMAINS   #
+# https://hestiacp.com/docs/server-administration/web-templates.html      #
+# Author: pochii-dev / PochiiGreen (https://github.com/PochiiGreen)       #
+#=========================================================================#
+
+server {
+	listen      %ip%:%web_ssl_port% ssl;
+	server_name %domain_idn% %alias_idn%;
+	root        %sdocroot%;
+	index       index.php index.html index.htm;
+	access_log  /var/log/nginx/domains/%domain%.log combined;
+	access_log  /var/log/nginx/domains/%domain%.bytes bytes;
+	error_log   /var/log/nginx/domains/%domain%.error.log error;
+
+	ssl_certificate     %ssl_pem%;
+	ssl_certificate_key %ssl_key%;
+
+	include %home%/%user%/conf/web/%domain%/nginx.hsts.conf*;
+
+	location ~ /\.(?!well-known\/|file) {
+		deny all;
+		return 404;
+	}
+
+	location / {
+		proxy_pass http://127.0.0.1:3000;
+		include %home%/%user%/conf/web/%domain%/nodeport.conf*;
+
+		proxy_http_version 1.1;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "upgrade";
+		proxy_set_header Host $host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto $scheme;
+		proxy_set_header X-Forwarded-Port $server_port;
+		proxy_set_header X-Forwarded-Host $host;
+		proxy_read_timeout 300s;
+		proxy_send_timeout 300s;
+	}
+
+	location /error/ {
+		alias %home%/%user%/web/%domain%/document_errors/;
+	}
+
+	location /vstats/ {
+		alias   %home%/%user%/web/%domain%/stats/;
+		include %home%/%user%/web/%domain%/stats/auth.conf*;
+	}
+
+	include /etc/nginx/conf.d/phpmyadmin.inc*;
+	include /etc/nginx/conf.d/phppgadmin.inc*;
+	include %home%/%user%/conf/web/%domain%/nginx.ssl.conf_*;
+}

@@ -51,11 +51,15 @@ curl -fsSL https://raw.githubusercontent.com/PochiiGreen/hestia-nodejs/main/unin
 * 🔌 **Soporte para Cualquier Puerto (ej: 3041, 4000, 5000, etc.)**: 
   * Asigna **cualquier puerto local** a cada dominio o subdominio.
   * Nginx resuelve el puerto de forma dinámica mediante `nodeport.conf` sin alterar plantillas del sistema.
-* 🌐 **Plantilla Única Nginx Reverse Proxy (Sin colisiones de `index.html`)**:
+* 🌐 **Plantilla Única Nginx Reverse Proxy (Compatible con Apache2+Nginx y Nginx Standalone)**:
+  * Si tu servidor utiliza **Apache2 + Nginx**:
+    * En **Edit Web Domain**: **Web Template APACHE2** = `default`, **Proxy Template** = `nodejs`. Nginx escucha en puertos 80/443 y pasa todo directamente al puerto de tu Node.js (ej: `3041` o `3000`), evitando conflictos de puertos con Apache.
+  * Si tu servidor utiliza **Nginx Standalone (PHP-FPM sin Apache2)**:
+    * En **Edit Web Domain**: **Web Template** = `nodejs`.
   * `location /` envía **directamente** todo el tráfico web a tu aplicación Node.js en su puerto local.
-  * No hay archivos `index.html` estáticos interfiriendo con las respuestas de tu servidor.
+  * Sin colisiones con `index.html` estáticos interfiriendo con las rutas de Express/Fastify/Next.js.
   * Soporte nativo para WebSockets (`Upgrade` y `Connection`).
-  * Despacho ultra-rápido de archivos estáticos (imágenes, fuentes, css) directamente desde Nginx con caché de 30 días.
+  * Incluye hook `nodejs.sh` automático para auto-inicializar `nodeport.conf` y permisos al seleccionar la plantilla en el panel web.
 * 🔄 **Persistencia y Aislamiento Multi-usuario (PM2 + Systemd)**:
   * Servicio `pm2-<usuario>.service` en `systemd` que auto-inicia los procesos tras cualquier reinicio del servidor.
 
