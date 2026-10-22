@@ -41,7 +41,7 @@ fastify.get('/', async (request, reply) => {
     <div class="meta">
       <div>Dominio: ${DOMAIN}</div>
       <div>Puerto: ${PORT}</div>
-      <div>Ubicación: ~/web/${DOMAIN}/private/nodeapp</div>
+      <div>Ubicación: ~/web/${DOMAIN}/public_html</div>
     </div>
     <a href="/api/status">Ver /api/status</a>
   </div>

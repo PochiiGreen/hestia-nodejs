@@ -19,11 +19,23 @@ mkdir -p "$conf_dir" 2>/dev/null || true
 # If nodeport.conf does not exist, initialize with default port 3000
 if [ ! -f "$conf_dir/nodeport.conf" ]; then
     cat <<EOF > "$conf_dir/nodeport.conf"
-# Node.js reverse proxy port mapping for $domain
-proxy_pass http://127.0.0.1:3000;
+# Node.js backend port mapping for $domain
+set \$backend_port 3000;
 EOF
     chown "$user:$user" "$conf_dir/nodeport.conf" 2>/dev/null || true
     chmod 644 "$conf_dir/nodeport.conf" 2>/dev/null || true
+else
+    # If legacy nodeport.conf contains "proxy_pass", convert it to "set $backend_port"
+    if grep -q "proxy_pass" "$conf_dir/nodeport.conf" 2>/dev/null; then
+        detected_port=$(grep -oE '[0-9]{2,5}' "$conf_dir/nodeport.conf" | head -n 1)
+        [ -z "$detected_port" ] && detected_port="3000"
+        cat <<EOF > "$conf_dir/nodeport.conf"
+# Node.js backend port mapping for $domain
+set \$backend_port $detected_port;
+EOF
+        chown "$user:$user" "$conf_dir/nodeport.conf" 2>/dev/null || true
+        chmod 644 "$conf_dir/nodeport.conf" 2>/dev/null || true
+    fi
 fi
 
 # Ensure web directory is traversable by the Nginx worker process

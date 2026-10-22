@@ -60,6 +60,15 @@ fi
 # Clean up any legacy or corrupted websocket conf in /etc/nginx/conf.d
 rm -f /etc/nginx/conf.d/websocket_upgrade.conf* 2>/dev/null || true
 
+# Install official WebSocket upgrade map
+cat << "EOF" > /etc/nginx/conf.d/node_websocket.conf
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+EOF
+chmod 644 /etc/nginx/conf.d/node_websocket.conf
+
 # System Telemetry
 echo -e "${C_BLUE}${C_BOLD}┌──────────────────────────────────────────────────────────────────┐${C_RESET}"
 echo -e "${C_BLUE}${C_BOLD}│               📊 INFORMACIÓN DEL SISTEMA DETECTADA               │${C_RESET}"
@@ -222,9 +231,38 @@ if [ -f "$V_RUN_CMD" ]; then
     fi
 fi
 
+# Convert any existing nodeport.conf to set $backend_port to eliminate duplicate directives
+for conf in /home/*/conf/web/*/nodeport.conf; do
+    if [ -f "$conf" ]; then
+        port=$(grep -oE '[0-9]{2,5}' "$conf" | head -n 1)
+        [ -z "$port" ] && port="3000"
+        echo "set \$backend_port $port;" > "$conf"
+        owner=$(stat -c '%U:%G' "$(dirname "$conf")" 2>/dev/null || echo "root:root")
+        chown "$owner" "$conf" 2>/dev/null || true
+        chmod 644 "$conf" 2>/dev/null || true
+    fi
+done
+
+# Rebuild domains currently using nodeport.conf to regenerate clean Nginx virtual hosts
+for u_dir in /home/*; do
+    [ ! -d "$u_dir" ] && continue
+    u=$(basename "$u_dir")
+    [ "$u" = "lost+found" ] && continue
+    for d_dir in "$u_dir/web"/*; do
+        [ ! -d "$d_dir" ] && continue
+        d=$(basename "$d_dir")
+        if [ -f "$u_dir/conf/web/$d/nodeport.conf" ]; then
+            /usr/local/hestia/bin/v-rebuild-web-domain "$u" "$d" "no" >/dev/null 2>&1 || true
+        fi
+    done
+done
+
 # Reload Nginx
 if nginx -t >/dev/null 2>&1; then
     systemctl reload nginx
+else
+    echo -e "${C_YELLOW}⚠ Nginx test output:${C_RESET}"
+    nginx -t || true
 fi
 echo -e "\r  ${C_GREEN}✔${C_RESET} [6/6] Comandos CLI instalados y Nginx verificado sin errores."
 echo ""

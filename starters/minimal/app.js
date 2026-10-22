@@ -38,7 +38,7 @@ const server = http.createServer((req, res) => {
     <div class="meta">
       <div>App: ${APP_NAME}</div>
       <div>Puerto: ${PORT}</div>
-      <div>Ubicación: ~/web/${DOMAIN}/private/nodeapp</div>
+      <div>Ubicación: ~/web/${DOMAIN}/public_html</div>
     </div>
     <a href="/api/status">/api/status</a>
   </div>

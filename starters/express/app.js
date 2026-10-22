@@ -60,7 +60,7 @@ app.get('/', (req, res) => {
       <div>Dominio: <span>${DOMAIN}</span></div>
       <div>Puerto Interno: <span>${PORT}</span></div>
       <div>Node Version: <span>${process.version}</span></div>
-      <div>Ubicación: <span>~/web/${DOMAIN}/private/nodeapp</span></div>
+      <div>Ubicación: <span>~/web/${DOMAIN}/public_html</span></div>
     </div>
     <p><a href="/api/status">Endpoint /api/status</a> · <a href="/health">Health Check</a></p>
   </div>

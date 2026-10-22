@@ -24,6 +24,7 @@ fi
 
 # 2. Remove corrupted or legacy websocket upgrade file if present
 rm -f /etc/nginx/conf.d/websocket_upgrade.conf* 2>/dev/null || true
+rm -f /etc/nginx/conf.d/node_websocket.conf* 2>/dev/null || true
 echo "✔ Verificada limpieza de /etc/nginx/conf.d"
 
 # 3. Remove CLI commands
